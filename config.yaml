@@ -1,0 +1,31 @@
+device: 
+    egg_device: 'OpenBCI'                     # Type of EEG device
+    channel: ['C1', 'C2', 'C3', 'C4', 'Cz']   # EEG channels to use
+    sample_rate: 250                          # Sampling rate of the EEG device in Hz
+
+
+filter_params: 
+  lowcut: 8.0        # Low cut frequency for bandpass filter
+  highcut: 30.0      # High cut frequency for bandpass filter
+  fs: 250.0          # Sampling frequency of EEG device
+  order: 5           # Order of the filter
+
+  
+psd_params:
+  window_size: 1.0      # Size of the EEG data window in seconds
+  step_size: 0.5        # Step size for moving the EEG data window in seconds
+
+
+pre_train_model_path: 'models/mi_classifier.pkl'  # Path to the pre-trained MI classification model
+
+
+mock_eeg_data:
+  use_mock_data: false                       # Whether to use mock EEG data for testing
+  mock_data_path: 'data/mock_eeg_data.npy'   # Path to the mock EEG data file
+
+
+control_params:
+  left_wheel_speed: 1.0     # Speed for left wheel when moving left
+  right_wheel_speed: 1.0    # Speed for right wheel when moving right
+  stop_speed: 0.0           # Speed for stopping the wheelchair
+
