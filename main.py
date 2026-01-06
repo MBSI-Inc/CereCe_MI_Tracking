@@ -1,9 +1,9 @@
 import argparse
 import time
-from eeg_receiver import EEG_Receiver
-from mi_predictor import MI_Predictor
-from evidence_accumulator import Evidence_Accumulator
-from wheelchair_controller import Wheelchair_Controller
+from utils.eeg_receiver import EEG_Receiver
+from utils.mi_predictor import MI_Predictor
+from utils.evidence_accumulator import Evidence_Accumulator
+from utils.wheelchair_controller import Wheelchair_Controller
 
 def start_MI_Tracking(config):
     '''
