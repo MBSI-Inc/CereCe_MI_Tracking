@@ -13,19 +13,23 @@ def start_MI_Tracking(config):
     mi_tracker = MI_Tracker(config)
     evidence_accumulator = Evidence_Accumulator(config)
     wheelchair_controller = Wheelchair_Controller(config)
-    
+
     while True:
-        # get the [left or right] MI signal, which is predicted using EEG signals 
-        mi_signal = mi_tracker.get_MI_signal() 
-        if mi_signal == 0:
+        # get the [left/right] MI signal, which is predicted using EEG signals 
+        mi_signal = mi_tracker.get_MI_signal()  # mi_signal = [left/right/stop, probability]
+
+        # accumulate [left or right] evidence over time to make a robust decision
+        evidence = evidence_accumulator.update(mi_signal)
+
+        if evidence == 'left':
             print("Move wheelchair left")
-            # code to move wheelchair left
-        elif mi_signal == 1:
+            wheelchair_controller.move_left()
+        elif evidence == 'right':
             print("Move wheelchair right")
-            # code to move wheelchair right
-        elif mi_signal == -1:
+            wheelchair_controller.move_right()
+        elif evidence == 'stop':
             print("No MI detected, stop wheelchair")
-            # code to keep wheelchair still
+            wheelchair_controller.stop()
 
 
 if __name__ == "__main__":
