@@ -1,35 +1,80 @@
 import argparse
-from mi_tracker import MI_Tracker
+import time
+from eeg_receiver import EEG_Receiver
+from mi_predictor import MI_Predictor
 from evidence_accumulator import Evidence_Accumulator
 from wheelchair_controller import Wheelchair_Controller
 
 def start_MI_Tracking(config):
     '''
-    Thread setup (rates & shared data)
-    1) [MI_Tracker] Hardware receive thread @ 250 Hz: read EEG from the device and push into a ring buffer (write EEG_Buffer).
-    2) [MI_Tracker] Processing thread ~ 20 Hz (every 50 ms): pull the latest window from EEG_Buffer -> preprocess -> run MI prediction (read EEG_Buffer, write MI_Command).
-    3) [start_MI_Tracking] Wheelchair control thread (as needed): continuously read MI_Command and drive the motors in real time (read MI_Command).
+    Orchestrates the main real-time BCI control pipeline.
+
+    This function implements an asynchronous "Producer-Consumer" architecture:
+    1. Hardware Layer (Background Thread): The EEG_Receiver captures raw data 
+       at high frequency (250Hz) to prevent packet loss.
+    2. Logic Layer (Main Loop): This loop processes data, predicts commands, 
+       and updates the wheelchair controller at a stable control rate (~20Hz).
+
+    Key Features:
+        - Decoupling: Separates hardware data ingestion from signal processing.
+        - Smoothing: Uses Evidence Accumulation to filter out signal jitter.
+        - Rate Limiting: Maintains a consistent loop interval to manage CPU load.
+
+    Args:
+        config (dict): Configuration parameters for all subsystems.
     '''
-    mi_tracker = MI_Tracker(config)
-    evidence_accumulator = Evidence_Accumulator(config)
-    wheelchair_controller = Wheelchair_Controller(config)
+    # --- Constants ---
+    # Target control frequency: 20Hz (50ms interval)
+    LOOP_INTERVAL = 0.05 
 
+    # --- Initialization ---
+    # Receiver handles high-frequency (250Hz) hardware IO in a background thread
+    receiver = EEG_Receiver(config) 
+    predictor = MI_Predictor(config)
+    accumulator = Evidence_Accumulator(config)
+    controller = Wheelchair_Controller(config)
+
+    print("Starting EEG Stream...")
+    receiver.start_stream()
+
+    print("System Ready. Entering Control Loop...")
+
+    # --- Main Control Loop (~20Hz) ---
     while True:
-        # get the [left/right] MI signal, which is predicted using EEG signals 
-        mi_signal = mi_tracker.get_MI_signal()  # mi_signal = [left/right/stop, probability]
+        loop_start = time.time()
 
-        # accumulate [left or right] evidence over time to make a robust decision
-        evidence = evidence_accumulator.update(mi_signal)
+        # 1. Fetch Data (Consumer)
+        # Retrieves all buffered data accumulated since the last loop iteration
+        data = receiver.get_latest_data()
 
-        if evidence == 'left':
-            print("Move wheelchair left")
-            wheelchair_controller.move_left()
-        elif evidence == 'right':
-            print("Move wheelchair right")
-            wheelchair_controller.move_right()
-        elif evidence == 'stop':
-            print("No MI detected, stop wheelchair")
-            wheelchair_controller.stop()
+        if len(data) > 0:
+            # 2. Predict (Inference)
+            # Returns None if buffer isn't full yet, or a probability distribution
+            raw_prediction = predictor.process_and_predict(data)
+
+            if raw_prediction:
+                # 3. Stabilize (Evidence Accumulation)
+                # Integrates probability over time to produce a stable command
+                stable_cmd = accumulator.update(raw_prediction)
+
+                # 4. Actuate (Control)
+                if stable_cmd == 'left':
+                    print("Moving Left")
+                    controller.move_left()
+                elif stable_cmd == 'right':
+                    print("Moving Right")
+                    controller.move_right()
+                else:
+                    # Default safe state: Stop if command is 'stop' or uncertain
+                    print("Stopping")
+                    controller.stop()
+
+        # 5. Rate Limiting
+        # Ensures the loop runs at ~20Hz to prevent CPU saturation
+        elapsed = time.time() - loop_start
+        sleep_time = LOOP_INTERVAL - elapsed
+        if sleep_time > 0:
+            time.sleep(sleep_time)
 
 
 if __name__ == "__main__":
