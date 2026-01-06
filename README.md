@@ -1,6 +1,6 @@
 ### Real-time Control Challenges & Solutions
 
-![architecture diagram](./figs/architecture.png)
+![architecture diagram](./figs/architecture_v2.png)
 
 
 
