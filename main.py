@@ -1,5 +1,7 @@
 import argparse
 from mi_tracker import MI_Tracker
+from evidence_accumulator import Evidence_Accumulator
+from wheelchair_controller import Wheelchair_Controller
 
 def start_MI_Tracking(config):
     '''
@@ -9,6 +11,9 @@ def start_MI_Tracking(config):
     3) [start_MI_Tracking] Wheelchair control thread (as needed): continuously read MI_Command and drive the motors in real time (read MI_Command).
     '''
     mi_tracker = MI_Tracker(config)
+    evidence_accumulator = Evidence_Accumulator(config)
+    wheelchair_controller = Wheelchair_Controller(config)
+    
     while True:
         # get the [left or right] MI signal, which is predicted using EEG signals 
         mi_signal = mi_tracker.get_MI_signal() 

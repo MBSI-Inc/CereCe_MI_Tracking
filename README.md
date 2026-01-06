@@ -1,3 +1,13 @@
+### Real-time Control Challenges & Solutions
+
+**1. Sampling Rate Mismatch**
+* **Problem:** The EEG hardware streams data (250Hz) faster than the inference or motor control loops can process, leading to potential lag or backlog.
+* **Solution:** **Last Value Caching (LVC)**. We use a shared state variable that always holds the *single most recent* command. The controller polls the latest data and ignores obsolete intermediate states, ensuring zero latency.
+
+**2. Signal Instability**
+* **Problem:** Raw EEG predictions fluctuate due to noise, causing erratic wheelchair movements (jitter) or false positives.
+* **Solution:** **Evidence Accumulation**. We implement a continuous integrator (Leaky Integrate-and-Fire). Movement commands are only triggered when the accumulated confidence score exceeds a robust threshold, effectively smoothing out transient noise.
+
 
 ### main.py
 - Start mi_tracker
