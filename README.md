@@ -6,26 +6,10 @@
 
 **1. Sampling Rate Mismatch**
 - **Problem:** The EEG hardware streams data (250Hz) faster than the inference or motor control loops can process, leading to potential lag or backlog.
-- **Solution:** **Last Value Caching (LVC)**. We use a shared state variable that always holds the *single most recent* command. The controller polls the latest data and ignores obsolete intermediate states, ensuring zero latency.
+- **Solution:** **Rolling FIFO Buffer**. We utilize a rolling FIFO buffer to maintain the most current EEG signals. The predictor asynchronously retrieves the latest data chunk from this buffer to forecast MI signals and control the wheelchair. The operating frequency depends on the pipeline's processing speed, ensuring minimal latency.
 
 **2. Signal Instability**
 - **Problem:** Raw EEG predictions fluctuate due to noise, causing erratic wheelchair movements (jitter) or false positives.
 - **Solution:** **Evidence Accumulation**. We implement a continuous integrator (Leaky Integrate-and-Fire). Movement commands are only triggered when the accumulated confidence score exceeds a robust threshold, effectively smoothing out transient noise.
 - **Notes**: Turning requires strong and continuous mental concentration
 
-
-### main.py
-- Start mi_tracker
-
-- Continuously control the wheelchair using MI signal from mi_tracker until the program ends
-
-### mi_tracker pipeline:
-- connect to an EEG device (e.g., OpenBCI, Muse, etc.)
-
-- preprocess EEG data (e.g., bandpass filtering, artifact removal, etc.)
-
-- compute power spectral density (PSD) features from EEG data
-
-- use the pre-trained MI model to predict MI signals (left/right/no MI)
-
-- return the predicted MI signal for wheelchair control
