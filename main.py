@@ -29,10 +29,10 @@ def start_MI_Tracking(config):
 
     # --- Initialization ---
     # Receiver handles high-frequency (250Hz) hardware IO in a background thread
-    receiver = EEG_Receiver(config) 
-    predictor = MI_Predictor(config)
-    accumulator = Evidence_Accumulator(config)
-    controller = Wheelchair_Controller(config)
+    receiver = EEG_Receiver(config.eeg_params) 
+    predictor = MI_Predictor(config.predictor_params)
+    accumulator = Evidence_Accumulator(config.accumulator_params)
+    controller = Wheelchair_Controller(config.controller_params)
 
     print("Starting EEG Stream...")
     receiver.start_stream()
@@ -42,22 +42,18 @@ def start_MI_Tracking(config):
     # --- Main Control Loop (~20Hz) ---
     while True:
         loop_start = time.time()
-
-        # 1. Fetch Data (Consumer)
-        # Retrieves all buffered data accumulated since the last loop iteration
+        # Retrieves all buffered data from the receiver
         data = receiver.get_latest_data()
 
         if len(data) > 0:
-            # 2. Predict (Inference)
-            # Returns None if buffer isn't full yet, or a probability distribution
+            # preprocess and predict MI command
             raw_prediction = predictor.process_and_predict(data)
 
             if raw_prediction:
-                # 3. Stabilize (Evidence Accumulation)
-                # Integrates probability over time to produce a stable command
+                # Evidence Accumulation (Smoothing)
                 stable_cmd = accumulator.update(raw_prediction)
 
-                # 4. Actuate (Control)
+                # Control Wheelchair based on stable command
                 if stable_cmd == 'left':
                     print("Moving Left")
                     controller.move_left()
@@ -69,7 +65,7 @@ def start_MI_Tracking(config):
                     print("Stopping")
                     controller.stop()
 
-        # 5. Rate Limiting
+        # Rate Limiting
         # Ensures the loop runs at ~20Hz to prevent CPU saturation
         elapsed = time.time() - loop_start
         sleep_time = LOOP_INTERVAL - elapsed

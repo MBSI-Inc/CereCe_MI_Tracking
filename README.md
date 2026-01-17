@@ -13,3 +13,11 @@
 - **Solution:** **Evidence Accumulation**. We implement a continuous integrator (Leaky Integrate-and-Fire). Movement commands are only triggered when the accumulated confidence score exceeds a robust threshold, effectively smoothing out transient noise.
 - **Notes**: Turning requires strong and continuous mental concentration
 
+### Future Plan
+**1. Process Logging & Visualization**
+
+- **Pipeline Monitoring**: High-level visual tracking of the entire process to provide clear insights into system operations.
+
+- **Signal-Prediction Alignment**: Synchronized visualization of EEG signals(including the receiver buffer) alongside model predictions for precise behavioral analysis.
+
+- **Comparative Analysis**: When using ground-truth labeled data, the system provides a side-by-side visualization of labels vs. model predictions, facilitating intuitive performance assessment during testing.
