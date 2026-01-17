@@ -1,21 +1,18 @@
-mock_eeg_data:
-use_labeled_data: false                 # Whether to use mock EEG data for testing
-data_path: 'data/eeg_data.npy'        # Path to the mock EEG data file
-
-
-reciver_params: 
-    egg_device: 'OpenBCI'                     # Type of EEG device
-    channel: ['C1', 'C2', 'C3', 'C4', 'Cz']   # EEG channels to use
-    sample_rate: 250                          # Sampling rate of the EEG device in Hz
+receiver_params: 
+  input_mode: 'file'    # you can choose between 'file' and 'device' as input source
+  data_path: 'data/eeg_data.npy'            # Path to the EEG data file (used if input_mode is 'file')
+  device_name: 'Explore_842F'               # Name of the EEG device (used if input_mode is 'device')
+  buffer_size: 300                          # Size of the internal buffer to store EEG samples
 
 
 predictor_params: 
+  CH_LABELS: ["Fcz", "C3", "Cz", "C4"]         # List of EEG channel labels
   lowcut: 8.0           # Low cut frequency for bandpass filter
   highcut: 30.0         # High cut frequency for bandpass filter
   order: 5              # Order of the filter
   window_size: 1.0      # Size of the EEG data window in seconds
   step_size: 0.5        # Step size for moving the EEG data window in seconds
-  pre_train_model_path: 'models/mi_classifier.pkl'  # Path to the pre-trained MI classification model
+  pre_train_model_path: 'models/mi_classifier.pkl'        # Path to the pre-trained MI classification model
 
 
 accumulator_params: 
@@ -28,4 +25,6 @@ control_params:
   left_wheel_speed: 1.0     # Speed for left wheel when moving left
   right_wheel_speed: 1.0    # Speed for right wheel when moving right
   stop_speed: 0.0           # Speed for stopping the wheelchair
+
+loop_interval: 0.05         # Control loop interval in seconds (20Hz)
 

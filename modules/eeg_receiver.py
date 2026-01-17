@@ -1,19 +1,11 @@
-# Load in helper functions
-from explorepy import Explore
-from .mockExplore import MockExplore
-from .helper_functions import *
-from .self_threaded_process_interface import AbstractSelfThreadedProcess
-
-# Online motor imagery experiment
-import pickle
-import time
-import os
+from threading import Thread
+from collections import deque
 import numpy as np
-from . import constants
-from threading import Lock, Thread
+from explorepy import Explore
 from explorepy.stream_processor import TOPICS
 
-class EEG_Receiver(AbstractSelfThreadedProcess):
+
+class EEG_Receiver(Thread):
     """
     This is a thread that receives EEG data from the Explore device.
     It maintains a buffer of the most recent EEG data for processing.
@@ -29,195 +21,127 @@ class EEG_Receiver(AbstractSelfThreadedProcess):
         EEG_Receiver: An instance of the EEG_Receiver class.
     """
 
-    def __init__(self, eeg_name, use_mock=False, mock_file=None, silent=True):
+    def __init__(self, params):
+        super().__init__()
+        self.mode = params.get('input_mode', 'file')    # input from 'file' or 'device'
+        self.running = False       
+        self.daemon = True        
+        self.buffer = deque(maxlen=params.get('buffer_size', 300)) # buffer shape: (buffer_size(timestamp), n_ch)
+        self.buffer_lock = Thread.Lock()
 
-        # mock data parameters
-        self.use_mock = use_mock
-        self.mock_file = mock_file
-
-        # EEG device parameters
-        self.eeg_name = eeg_name
-        self.CH_LABELS = ["Fcz", "C3", "Cz", "C4"]
-        self.C3_ch = self.CH_LABELS.index("C3")
-        self.C4_ch = self.CH_LABELS.index("C4")
-        self.Cz_ch = self.CH_LABELS.index("Cz")
-        self.Fcz_ch = self.CH_LABELS.index("Fcz")
-        self.n_ch = 4
-
-        self.explore = self.load_device_or_mock()
+        if self.mode == 'file':
+            print(f"[Receiver] Input Mode: File")
+            self.data_path = params.get('data_path', None)    
+            self.explorer = self.simulate_device()
         
-        
-        # signal processing parameters
-        self.sf = constants.SAMPLING_FREQ
-        self.signal_len = constants.SIGNAL_LENGTH
-        
-        # Buffer parameters
-        self._data_buff = np.array([])
+        elif self.mode == 'device':
+            print(f"[Receiver] Input Mode: Device")
+            self.device_name = params.get('device_name', 'Explore EEG Device')
+            explorer = Explore()
+            explorer.connect(device_name=self.device_name)
 
-        # threading parameters
-        self.thread = None
-        self.lock = Lock()
-        self.running = False
-        self.silent = silent
-
-        
-    
-    def load_device_or_mock(self):
-        '''
-        Load Explore device or MockExplore based on configuration.
-        args:
-            self.use_mock: bool, whether to use mock data
-            self.mock_file: str, path to mock data file
-            self.eeg_name: str, name of the EEG device
-        returns:
-            explore: Explore or MockExplore object
-        '''
-        if self.use_mock and self.mock_file is not None:
-            if not os.path.isfile(self.mock_file):
-                raise FileNotFoundError(
-                    "Mock file not found: {}".format(self.mock_file)
-                )
-            else:
-                print("Using mock data from file: {}".format(self.mock_file))
-                explore = MockExplore(
-                    csv_path=self.mock_file,
-                    chunk_size=constants.CHUNK_SIZE,  # how many samples per chunk
-                    sampling_rate=constants.SAMPLING_FREQ,  # the sampling frequency of your original data
-                )
+            ## TODO: add timestamp verification and impedance verification here
         else:
-            print("Connecting to Explore device: {}".format(self.eeg_name))
-            explore = Explore()
-        
-        return explore
+            raise ValueError(f"Unknown mode: {self.mode}")
 
 
 
+    def run(self):
+        self.running = True
+        if self.mode == 'device':
+            print("[Receiver] Thread started. listening to hardware...")
+            self.explorer.stream_processor.subscribe(
+                    callback=self.update_buffer,
+                    topic=TOPICS.raw_ExG
+                )     
+            try:
+                self.explorer.acquire()
+            except Exception as e:
+                print(f"Error: {e}")
+                self.running = False
 
-
-    def __run(self):
-        # Fill buffer
-        if not self.silent:
-            print("Waiting for initial buffer load...")
-        time.sleep(5)
-
-        while True:
-            self.__analyse_data()  # outputs self.predicted
-
-            if not self.silent:
-                print(
-                    "## Async MI: prediction: {0}, raw prediction: {1}".format(
-                        self.predicted, self.predicted_raw
-                    )
-                )
-
-            if not self.running:
-                break
-
-            # pause processing for the time expected to take to re-fill the buffer
-            if not self.silent:
-                print(
-                    "run loop sleeping for {0} seconds".format(
-                        (self.signal_len - self.overlap) / 2
-                    )
-                )
-            time.sleep((self.signal_len - self.overlap) / 2)
-
-    # public
-    def start(self):
-        if not self.running:
-            self.running = True
-
-            # Connect to EEG
-            self.explore.connect(device_name=self.eeg_name)
-
-            self.explore.stream_processor.subscribe(
-                callback=self.update_buffer, topic=TOPICS.raw_ExG
-            )
-
-            # Setting thread as daemon ensure this is killed even if stop is not called.
-            # EG this class is disposed but stop is not called.
-            # Setting may not be necessary, but probably a good precaution.
-            self.thread = Thread(target=self.__run, daemon=True)
-            self.thread.start()
+        elif self.mode == 'file':
+            print("[Receiver] Thread started. reading from file...")
+            # Simulate reading data from file
+            # Here you would implement the logic to read from your data file
+            # and call self.update_buffer with the data packets.
+            pass
 
 
     def stop(self):
-        if self.running:
-            self.running = False
-            self.thread.join()
-            self.explore.disconnect()
+        self.running = False
+        if self.mode == 'device':
+            print("[Receiver] Stopping thread and disconnecting from device...")
+            self.explorer.stop_acquisition()
+            self.explorer.disconnect()
+            
+        elif self.mode == 'file':
+            print("[Receiver] Stopping thread reading from file...")
+            # Implement any necessary cleanup for file reading here
+            pass
+
 
 
     def update_buffer(self, packet):
-        """Update EEG buffer of the experiment
-        Args:
-            packet (explorepy.packet.EEG): EEG packet
-        """
-        _, eeg = packet.get_data()
-        if not len(self._data_buff):  # if data_buff array is empty
-            self._data_buff = eeg.T  # load eeg data into array
-        else:
-            self._data_buff = np.concatenate(
-                (self._data_buff, eeg.T), axis=0
-            )  # add to the end of the existing array
+        '''
+        Callback function to update the buffer with new EEG data packets.
+        args:
+            packet: explorepy data packet
+        '''
+        # get data from the packet
+        t_vector, exg_data = packet.get_data() # t_vector: (N,), exg_data: (N, n_ch)
+        # Acquire lock to safely update the buffer
+        with self.buffer_lock:
+            # put each sample into the buffer queue
+            for i in range(exg_data.shape[0]):
+                time_stamp = t_vector[i]
+                sample = exg_data[i, :]
+                flat_sample = np.concatenate(([time_stamp], sample)) # shape: (1 + n_ch,)
+                self.buffer.append(flat_sample)  
 
-    def __analyse_data(self):
-        # get data from update_buffer
-        # analyse it using classify
-        # return predicted_hand
 
-        if len(self._data_buff) > 0:  # if there is data loaded into data_buff array
-            if (
-                self._data_buff.shape[0] > self.signal_len * self.sf
-            ):  # if data_buff gets to the length of sliding window
-                # When the lock exists, all other threads cannot access the lock.
-                # The purpose of this lock is to prevent any other threads from modifying the data buffer in the middle of analysis.
-                with self.lock:
-                    self.epoch = self._data_buff[
-                        : int(self.signal_len * self.sf), :
-                    ].T  # slice the end of the array and transpose it
-                    self.predicted = self.__classify(self.epoch)  # classify it
-                    self.epoch = np.array([])  # Just incase
+    def get_buffer_data(self):
+        '''
+        Get all data from the buffer as a numpy array.
+        returns:
+            data: np.array, shape (n_samples, n_ch)
+        '''
+        # Acquire lock to safely read from the buffer
+        with self.buffer_lock:
+            data = np.array(self.buffer)  # Convert deque to numpy array
+        return data 
+    
 
-                    self.predicted_raw = self.predicted
-                    self.predicted = self.__exponential_filter(
-                        value=self.predicted, value_previous=self.predicted_previous
-                    )  # Smooth it
 
-                    self.predicted_previous = self.predicted
+    def simulate_device(self):        
+        '''
+        Simulate Explore device using data file.
+        args:
+            self.data_path: str, path to data file
+        returns:
+            explore: MockExplore object
+        '''
+        class MockExplore:
+            def __init__(self, data_path, callback):
+                self.data = np.load(data_path)  # Load data from file
+                self.callback = callback
+                self.index = 0
+                self.running = False
 
-                    # Desired outcome is for the end section of the _data_buffer of size equal to overlap to be kept each time.
-                    # Doing it in specifically this way prevents this buffer from going faster than we can crop it.
-                    overlap_sample_count = int(self.overlap * self.sf)
-                    samples_to_chop = len(self._data_buff) - overlap_sample_count
-                    self._data_buff = self._data_buff[
-                        samples_to_chop:, :
-                    ]  # sliding window
+            def acquire(self):
+                self.running = True
+                while self.running and self.index < self.data.shape[0]:
+                    # Simulate data packet
+                    t_vector = np.array([self.data[self.index, 0]])
+                    exg_data = np.array([self.data[self.index, 1:]])
+                    packet = MockPacket(t_vector, exg_data)
+                    self.callback(packet)
+                    self.index += 1
 
-    # public
-    def getData(self):
-        return (self.predicted, self.predicted_raw)
+            def stop_acquisition(self):
+                self.running = False
 
-    def __del__(self):
-        self.stop()
+            def disconnect(self):
+                pass
+        
 
-    def __exponential_filter(self, value, value_previous):
-        return ((value_previous + 1) * self.beta) + ((value + 1) * (1 - self.beta)) - 1
-
-    def __classify(self, epoch):
-        psd = self.__get_features(epoch)
-        result = self.loaded_model.predict([psd])
-        return result[0]
-
-    def __get_features(self, epoch):
-        # Cz re-reference
-        Cz_ind = self.CH_LABELS.index("Cz")
-        epoch_Cz = Cz_rereference(epoch, Cz_ind)
-        # Filter
-        epoch_filt = filter_epoch(
-            epoch=epoch_Cz, low=self.low, high=self.high, sf=self.sf
-        )
-        epoch_psd, _ = PSD_epoch(
-            epoch=epoch_filt, low=self.low, high=self.high, sf=self.sf
-        )
-        return epoch_psd
