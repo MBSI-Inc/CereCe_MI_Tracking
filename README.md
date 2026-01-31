@@ -121,8 +121,8 @@ graph TD
 
     %% Styling
     classDef dev fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000;
-    classDef data fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
-    classDef qa fill:#ffebee,stroke:#c62828,stroke-width:2px;
+    classDef data fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000;
+    classDef qa fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000;
     classDef root fill:#333,stroke:#333,stroke-width:3px,color:#fff;
 
     class M1,M2,M3,M4,Train,Sys_Node dev;
