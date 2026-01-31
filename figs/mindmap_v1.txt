@@ -1,0 +1,54 @@
+---
+config:
+  layout: dagre
+---
+graph TD
+    Root("PROJECT<br/>OVERVIEW")
+    subgraph Dev_Stream ["💻 System Implementation"]
+        direction TB
+        Sys_Node("Implementation<br/>Core")
+        
+        M1("Module1")
+        M2("Module2")
+        M3("Module3")
+        M4("Module4")
+        Train("Model<br/>Training")
+        
+        Sys_Node --> M1
+        Sys_Node --> M2
+        Sys_Node --> M3
+        Sys_Node --> M4
+        Sys_Node --> Train
+    end
+    subgraph Data_Stream ["📊 Data Ops"]
+        direction TB
+        Std_Node("Data<br/>Standards")
+        
+        P1("Experimental<br/>Paradigm")
+        P2("Data<br/>Recording")
+        P3("File<br/>Description")
+        NewD("New<br/>Data")
+        
+        Std_Node --> P1
+        Std_Node --> P2
+        Std_Node --> P3
+        Std_Node --> NewD
+    end
+    subgraph QA_Stream ["🛡️Quality Assurance"]
+        direction TB
+        Test_Node("Testing")
+        Script["Unit Testing<br/>Script"]
+        Test_Node --> Script
+    end
+    Root --> Sys_Node
+    Root --> Std_Node
+    Root --> Test_Node
+    classDef dev fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000;
+    classDef data fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000;
+    classDef qa fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000;
+    classDef root fill:#fff,stroke:#333,stroke-width:3px,color:#000;
+
+    class M1,M2,M3,M4,Train,Sys_Node dev;
+    class P1,P2,P3,NewD,Std_Node data;
+    class Script,Test_Node qa;
+    class Root root;
