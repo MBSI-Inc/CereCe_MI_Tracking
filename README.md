@@ -120,7 +120,7 @@ graph TD
     Root --> Test_Node
 
     %% Styling
-    classDef dev fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef dev fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000;
     classDef data fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
     classDef qa fill:#ffebee,stroke:#c62828,stroke-width:2px;
     classDef root fill:#333,stroke:#333,stroke-width:3px,color:#fff;
