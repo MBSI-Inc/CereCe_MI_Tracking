@@ -67,20 +67,21 @@ This project consists of four main modules that work together to translate EEG s
 ## Mindmap
 
 ```mermaid
-graph TD
+graph LR
     %% Root Node
-    Root["PROJECT OVERVIEW"]
+    Root("PROJECT\nOVERVIEW")
     
     %% --- Stream 1: Development (Blue) ---
-    subgraph Dev_Stream ["💻 System Implementation"]
+    %% 这里的 Title 如果被切，也可以尽量简短，或者加空格撑开
+    subgraph Dev_Stream ["  💻 System Implementation  "]
         direction TB
-        Sys_Node("Implementation<br/>Core")
+        Sys_Node("Implementation\nCore")
         
-        M1["Module 1"]
-        M2["Module 2"]
-        M3["Module 3"]
-        M4["Module 4"]
-        Train["Model<br/>Training"]
+        M1("  Module 1  ")
+        M2("  Module 2  ")
+        M3("  Module 3  ")
+        M4("  Module 4  ")
+        Train("Model\nTraining")
         
         Sys_Node --> M1
         Sys_Node --> M2
@@ -90,14 +91,15 @@ graph TD
     end
 
     %% --- Stream 2: Data (Green) ---
-    subgraph Data_Stream ["📊 Data Standardization & Ops"]
+    subgraph Data_Stream ["  📊 Data Ops & Standards  "]
         direction TB
-        Std_Node("Data<br/>Standards")
+        Std_Node("Data\nStandards")
         
-        P1["Experimental<br/>Paradigm"]
-        P2["Data Recording<br/>Protocols"]
-        P3["Data File<br/>Description"]
-        NewD["New Data<br/>Collection"]
+        %% 关键修改：用 \n 换行，并加空格防止边缘被切
+        P1("Experimental\nParadigm")
+        P2("Data Recording\nProtocols")
+        P3("Data File\nDescription")
+        NewD("New Data\nCollection")
         
         Std_Node --> P1
         Std_Node --> P2
@@ -106,24 +108,24 @@ graph TD
     end
 
     %% --- Stream 3: QA (Red) ---
-    subgraph QA_Stream ["🛡️ Quality Assurance"]
+    subgraph QA_Stream ["  🛡️ Quality Assurance  "]
         direction TB
-        Test_Node("Testing")
-        Script["Unit Testing<br/>Script"]
+        Test_Node("  Testing  ")
+        Script["Unit Testing\nScript"]
         
         Test_Node --> Script
     end
 
-    %% Connections to Root
+    %% Connections
     Root --> Sys_Node
     Root --> Std_Node
     Root --> Test_Node
 
-    %% Styling
+    %% Styling (强制黑色字体 + 浅色背景)
     classDef dev fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000;
     classDef data fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000;
     classDef qa fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000;
-    classDef root fill:#333,stroke:#333,stroke-width:3px,color:#fff;
+    classDef root fill:#fff,stroke:#333,stroke-width:3px,color:#000;
 
     class M1,M2,M3,M4,Train,Sys_Node dev;
     class P1,P2,P3,NewD,Std_Node data;
