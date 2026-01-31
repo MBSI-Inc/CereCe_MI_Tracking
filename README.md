@@ -63,3 +63,70 @@ This project consists of four main modules that work together to translate EEG s
 
 **2. Improving prediction accuracy**
 - integrated real-time artifact correction into current prediction proccess. [post](https://www.linkedin.com/posts/victor-ferat_python-eeg-meg-activity-7415019925267853312-YJF8/?utm_source=share&utm_medium=member_android&rcm=ACoAABYU9BsBVhMTffCvRJALhNsmM7-QLtESekQ), [paper](https://www.biorxiv.org/content/10.1101/2025.10.04.680449v1)
+
+## Mindmap
+
+```mermaid
+graph TD
+    %% Root Node
+    Root["PROJECT OVERVIEW"]
+    
+    %% --- Stream 1: Development (Blue) ---
+    subgraph Dev_Stream ["💻 System Implementation"]
+        direction TB
+        Sys_Node("Implementation<br/>Core")
+        
+        M1["Module 1"]
+        M2["Module 2"]
+        M3["Module 3"]
+        M4["Module 4"]
+        Train["Model<br/>Training"]
+        
+        Sys_Node --> M1
+        Sys_Node --> M2
+        Sys_Node --> M3
+        Sys_Node --> M4
+        Sys_Node --> Train
+    end
+
+    %% --- Stream 2: Data (Green) ---
+    subgraph Data_Stream ["📊 Data Standardization & Ops"]
+        direction TB
+        Std_Node("Data<br/>Standards")
+        
+        P1["Experimental<br/>Paradigm"]
+        P2["Data Recording<br/>Protocols"]
+        P3["Data File<br/>Description"]
+        NewD["New Data<br/>Collection"]
+        
+        Std_Node --> P1
+        Std_Node --> P2
+        Std_Node --> P3
+        Std_Node --> NewD
+    end
+
+    %% --- Stream 3: QA (Red) ---
+    subgraph QA_Stream ["🛡️ Quality Assurance"]
+        direction TB
+        Test_Node("Testing")
+        Script["Unit Testing<br/>Script"]
+        
+        Test_Node --> Script
+    end
+
+    %% Connections to Root
+    Root --> Sys_Node
+    Root --> Std_Node
+    Root --> Test_Node
+
+    %% Styling
+    classDef dev fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef data fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef qa fill:#ffebee,stroke:#c62828,stroke-width:2px;
+    classDef root fill:#333,stroke:#333,stroke-width:3px,color:#fff;
+
+    class M1,M2,M3,M4,Train,Sys_Node dev;
+    class P1,P2,P3,NewD,Std_Node data;
+    class Script,Test_Node qa;
+    class Root root;
+```
