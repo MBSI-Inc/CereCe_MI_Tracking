@@ -283,7 +283,7 @@ if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(current_dir)
     data_file = os.path.join(project_root, 'data', 'MItest_24-01-27_ExG.csv')
-    model_file = os.path.join(project_root, 'data', 'MItest_24-01-27.sav')
+    model_file = os.path.join(project_root, 'models', 'LDA/MItest_24-01-27.sav')
 
     if os.path.exists(data_file) and os.path.exists(model_file):
         print(f"Loading data from {data_file}...")
