@@ -1,5 +1,7 @@
 import numpy as np
 import pickle
+import pandas as pd
+import os
 from scipy.signal import welch, butter, filtfilt
 
 # Import from the same package level assuming helper functions are available or redefine them
@@ -273,6 +275,50 @@ if __name__ == "__main__":
     
     result_ts = predictor.process_and_predict(data_with_ts)
     print(f"Result: {result_ts} (Expected: left)")
+
+    # --- Test Case 4: Real Data and Model ---
+    print("\n[Test Case 4] Real Data from file (70,000+ samples)")
+    
+    # Paths relative to this script
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(current_dir)
+    data_file = os.path.join(project_root, 'data', 'MItest_24-01-27_ExG.csv')
+    model_file = os.path.join(project_root, 'data', 'MItest_24-01-27.sav')
+
+    if os.path.exists(data_file) and os.path.exists(model_file):
+        print(f"Loading data from {data_file}...")
+        try:
+             # Read CSV matching the format: TimeStamp, ch1, ch2, ch3, ch4
+            df = pd.read_csv(data_file)
+            real_data = df.values # Convert to numpy array
+            print(f"Data Loaded: shape {real_data.shape}")
+
+            # Configure predictor with real model
+            real_config = {
+                'sf': 250,
+                'low_freq': 7,
+                'high_freq': 30,
+                'signal_len': 5, # Standard 5s window
+                'n_ch': 4,
+                'channels': ["Fcz", "C3", "Cz", "C4"],
+                'model_path': model_file
+            }
+            print(f"Initializing predictor module with real model from {model_file}...")
+            real_predictor = MI_Predictor(real_config)
+            print("Predictor initialized. Processing real data...")
+            
+            if real_predictor.model is not None:
+                # Simulate receiving all data at once
+                print("Predicting on full dataset (should auto-slice last 5s)...")
+                real_result = real_predictor.process_and_predict(real_data)
+                print(f"Real Data Prediction Result: {real_result}")
+            else:
+                print("Failed to load real model. Skipping prediction.")
+
+        except Exception as e:
+            print(f"Error processing real data: {e}")
+    else:
+        print(f"Data or Model file not found at {data_file} or {model_file}")
 
     print("\n--- Test Complete ---")
 

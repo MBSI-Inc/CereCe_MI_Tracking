@@ -104,3 +104,31 @@ The `MI_Predictor` class is responsible for real-time Motor Imagery (MI) classif
 
 4.  **Inference**:
     *   Uses a pre-loaded `sklearn.discriminant_analysis.LinearDiscriminantAnalysis` (LDA) model to classify the extracted PSD features.
+
+
+
+### Evidence Accumulator (`evidence_accumulator.py`)
+
+The `Evidence_Accumulator` class implements a temporal smoothing algorithm (Leaky Integrate-and-Fire inspired) to stabilize noisy predictions coming from the MI Predictor. It accumulates evidence over consecutive frames before triggering a stable high-level command, preventing jittery control outputs.
+
+#### Input
+*   **Data Type**: `str`
+*   **Format**: A raw prediction sequence from `MI_Predictor` (e.g., `'left'`, `'right'`, `'none'`) called frame-by-frame.
+
+#### Output
+*   Returns a stabilized command string:
+    *   `'left'`, `'right'`, or `'stop'`.
+
+#### Algorithm & Logic
+1.  **Frame-Based Update**:
+    *   The accumulator operates in discrete time steps (frames), typically synchronized with the application's main control loop frequency (e.g., 20Hz [0.05 seconds]).
+    *   At each update, all existing evidence scores **decay** by a fixed amount (`decay`).
+
+2.  **Evidence Building**:
+    *   If the incoming raw prediction matches a valid class ('left' or 'right'), its specific evidence score increases by `build_rate`.
+    *   Values are clamped between 0 and `max_evidence`.
+
+3.  **Command Triggering with Hysteresis**:
+    *   **Activation**: A command (e.g., 'left') is triggered only when its accumulated evidence exceeds the `threshold`.
+    *   **Maintenance (Hysteresis)**: Once a command is active, the threshold required to maintain it drops (multiplied by `hysteresis_factor`). This prevents the command from toggling off due to brief signal drops or noise.
+    *   If evidence drops below the maintenance threshold, the output reverts to `'stop'`.
