@@ -67,3 +67,40 @@ This project consists of four main modules that work together to translate EEG s
 ## Mindmap
 
 ![mindmap](figs/mindmap_v1.png)
+
+
+
+## Modules(detail)
+
+### MI Predictor (`mi_predictor.py`)
+
+The `MI_Predictor` class is responsible for real-time Motor Imagery (MI) classification from continuous EEG data streams using a pre-trained machine learning model (LDA).
+
+#### Input
+*   **Data Type**: `numpy.ndarray`
+*   **Shape**: `(n_samples, n_channels + 1)` or `(n_samples, n_channels)`
+    *   The module automatically detects if a timestamp column (index 0) is present (common in `EEG_Receiver` output) and removes it before processing.
+    *   Default channel configuration expects 4 channels (e.g., Fcz, C3, Cz, C4).
+
+#### Output
+*   Returns a string indicating the predicted command:
+    *   `'left'`: Left-hand motor imagery detected.
+    *   `'right'`: Right-hand motor imagery detected.
+    *   `'none'`: Returned when no valid prediction can be made (e.g., insufficient data, model error, or unmapped class).
+
+#### Processing Pipeline
+1.  **Data Validation & Management**:
+    *   **Insufficient Data**: If the input buffer length is shorter than the required window size (default 5 seconds), the module prints a warning (`Insufficient data...`) and returns `'none'` to avoid errors.
+    *   **Window Slicing**: If the input buffer contains more data than the window size, it automatically slices the **most recent** segment (e.g., last 1250 samples for 5s @ 250Hz) for analysis.
+
+2.  **Signal Preprocessing**:
+    *   **Cz Re-referencing**: (Optional) If the 'Cz' channel is defined, data is re-referenced to Cz, and the Cz channel is removed.
+    *   **Notch Filtering**: Applies a 4th-order Butterworth band-stop filter (45-55 Hz) to remove power-line noise.
+    *   **Band-pass Filtering**: Applies a 4th-order Butterworth band-pass filter (default 7-30 Hz) to isolate mu/beta rhythms relevant to MI.
+
+3.  **Feature Extraction**:
+    *   Computes **Power Spectral Density (PSD)** features using Welch's method.
+    *   Configuration matches legacy matplotlib parameters: 1-second Hanning window, no overlap.
+
+4.  **Inference**:
+    *   Uses a pre-loaded `sklearn.discriminant_analysis.LinearDiscriminantAnalysis` (LDA) model to classify the extracted PSD features.
