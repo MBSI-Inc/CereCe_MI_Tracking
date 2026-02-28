@@ -2,7 +2,7 @@ receiver_params:
   input_mode: 'file'    # you can choose between 'file' and 'device' as input source
   data_path: 'data/eeg_data.npy'            # Path to the EEG data file (used if input_mode is 'file')
   device_name: 'Explore_842F'               # Name of the EEG device (used if input_mode is 'device')
-  buffer_size: 300                          # Size of the internal buffer to store EEG samples
+  buffer_size: 2000                    # Size of the internal buffer to store EEG samples
 
 
 predictor_params: 

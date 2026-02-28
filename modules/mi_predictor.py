@@ -39,7 +39,7 @@ class MI_Predictor:
             print("Warning: 'Cz' channel not found in channel list. Re-referencing will be skipped.")
 
         # Load Model
-        self.model_path = config.get('model_path', 'mi_model.sav')
+        self.model_path = config.get('model_path', 'models/LDA/MItest_24-01-27.sav')
         self.model = self._load_model(self.model_path)
         
         # Output mapping

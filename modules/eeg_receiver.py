@@ -1,4 +1,4 @@
-from threading import Thread
+from threading import Thread, Lock
 from collections import deque
 import numpy as np
 import pandas as pd
@@ -30,7 +30,8 @@ class EEG_Receiver(Thread):
         self.running = False       
         self.daemon = True        
         self.buffer = deque(maxlen=params.get('buffer_size', 300)) # buffer shape: (buffer_size(timestamp), n_ch)
-        self.buffer_lock = Thread.Lock()
+        self.buffer_lock = Lock()
+
 
         if self.mode == 'file':
             print(f"[Receiver] Input Mode: File")
@@ -224,8 +225,8 @@ class EEG_Receiver(Thread):
 
 if __name__ == "__main__":
     def create_dummy_data(filename):
-        n_samples = 100 
-        sampling_rate = 10 # Hz
+        n_samples = 70818 
+        sampling_rate = 250 # Hz
         timestamps = np.arange(n_samples) / sampling_rate
         
         n_channels = 4
@@ -239,11 +240,13 @@ if __name__ == "__main__":
         df.to_csv(filename, index=False)
         print(f"Created dummy CSV file: {filename} with {n_samples} samples.")
 
-    csv_filename = "test_data_temp.csv"
-    create_dummy_data(csv_filename)
+    # csv_filename = "test_data_temp.csv"
+    # create_dummy_data(csv_filename)
+    csv_filename = "../data/MItest_24-01-27_ExG.csv"
+    
 
     # Use a small buffer size to demonstrate circular buffer behavior
-    buffer_size = 10
+    buffer_size = 1250
     params = {
         'input_mode': 'file',
         'data_path': csv_filename,
@@ -259,13 +262,13 @@ if __name__ == "__main__":
         receiver.start()
         
         start_monitor_time = time.time()
-        duration = 3.0 
+        duration = 999.0 
         
         print("\n=== Monitoring Buffer State (Circular Queue) ===")
         
         last_count = 0
         while time.time() - start_monitor_time < duration:
-            time.sleep(0.5)
+            # time.sleep(0.5)
             
             if not receiver.is_alive():
                 print("Receiver thread finished.")

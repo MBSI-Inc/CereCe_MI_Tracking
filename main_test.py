@@ -83,7 +83,8 @@ def start_MI_Tracking_Test(config_path):
                         controller_status = "Stopping"
             
             # Print Integration Status
-            print(f"[Status] {buffer_status} | {prediction_status} | {accumulator_status} | {controller_status}")
+            current_time = time.strftime("%H:%M:%S", time.localtime())
+            print(f"[{current_time}] [Status]  {buffer_status} | {prediction_status} | {accumulator_status} | {controller_status}")
 
             # Rate Limiting
             elapsed = time.time() - loop_start

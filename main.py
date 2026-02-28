@@ -17,6 +17,8 @@ def start_MI_Tracking(config_path):
     predictor = MI_Predictor(config['predictor_params'])
     accumulator = Evidence_Accumulator(config['accumulator_params'])
     controller = Wheelchair_Controller(config['control_params'])
+    
+    # sonic module
 
     # --- Start EEG Data Receiver ---
     receiver.run()
