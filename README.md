@@ -2,6 +2,14 @@
 
 ![architecture diagram](./figs/architecture_v3.png)
 
+you can run the following cmd to test the system:
+```bash
+python==3.10
+
+pip install -r requirements.txt
+
+python main_test.py
+```
 
 
 **1. Sampling Rate Mismatch**
