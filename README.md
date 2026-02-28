@@ -4,7 +4,9 @@
 
 you can run the following cmd to test the system:
 ```bash
-python==3.10
+conda create -n mi-tracking python==3.10
+
+conda activate mi-tracking
 
 pip install -r requirements.txt
 
