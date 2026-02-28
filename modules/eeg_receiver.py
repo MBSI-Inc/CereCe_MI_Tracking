@@ -1,6 +1,9 @@
 from threading import Thread
 from collections import deque
 import numpy as np
+import pandas as pd
+import time
+import os
 from explorepy import Explore
 from explorepy.stream_processor import TOPICS
 
@@ -61,11 +64,9 @@ class EEG_Receiver(Thread):
                 self.running = False
 
         elif self.mode == 'file':
-            print("[Receiver] Thread started. reading from file...")
-            # Simulate reading data from file
-            # Here you would implement the logic to read from your data file
-            # and call self.update_buffer with the data packets.
-            pass
+            print(f"[Receiver] Thread started. reading from file: {self.data_path}...")
+            if self.explorer:
+                 self.explorer.acquire()
 
 
     def stop(self):
@@ -121,27 +122,182 @@ class EEG_Receiver(Thread):
         returns:
             explore: MockExplore object
         '''
+        
+        # Inner MockPacket class
+        class MockPacket:
+            def __init__(self, t_vector, exg_data):
+                self.t_vector = t_vector
+                self.exg_data = exg_data
+            
+            def get_data(self):
+                return self.t_vector, self.exg_data
+
+        # Inner MockExplore class
         class MockExplore:
-            def __init__(self, data_path, callback):
-                self.data = np.load(data_path)  # Load data from file
-                self.callback = callback
-                self.index = 0
+            def __init__(self, receiver_instance):
+                self.receiver = receiver_instance
+                self.data_path = receiver_instance.data_path
                 self.running = False
+                self.data = None
+                self.load_data()
+                
+            def load_data(self):
+                if self.data_path.endswith('.csv'):
+                    df = pd.read_csv(self.data_path)
+                    # Use 'TimeStamp' column if available, else first column
+                    if 'TimeStamp' in df.columns:
+                        timestamps = df['TimeStamp'].values
+                        # ExG channels usually start after timestamp? 
+                        # Based on "TimeStamp,ch1,ch2,ch3,ch4"
+                        # We use columns 1: to be channels
+                        exg = df.iloc[:, 1:].values
+                    else:
+                        print(f"Warning: 'TimeStamp' column not found in {self.data_path}. Assuming first col is timestamp.")
+                        timestamps = df.iloc[:, 0].values
+                        exg = df.iloc[:, 1:].values
+                    
+                    # Combine for easier iteration
+                    self.times = timestamps
+                    self.exg = exg
+                    
+                elif self.data_path.endswith('.npy'):
+                    data = np.load(self.data_path)
+                    # Assuming shape (N, n_ch+1) or similar protocol
+                    self.times = data[:, 0]
+                    self.exg = data[:, 1:]
+                else:
+                    raise ValueError("Unsupported file format. Use .csv or .npy")
+                
+                print(f"[MockExplore] Loaded {len(self.times)} samples.")
+
 
             def acquire(self):
                 self.running = True
-                while self.running and self.index < self.data.shape[0]:
-                    # Simulate data packet
-                    t_vector = np.array([self.data[self.index, 0]])
-                    exg_data = np.array([self.data[self.index, 1:]])
-                    packet = MockPacket(t_vector, exg_data)
-                    self.callback(packet)
-                    self.index += 1
+                idx = 0
+                n_samples = len(self.times)
+                # Calculate delays
+                # Assuming first sample is t=0 for simulation, or respect absolute timestamps?
+                # Best to respect relative time differences.
+                
+                print("[MockExplore] Starting acquisition simulation...")
+                
+                start_real_time = time.time()
+                if n_samples > 0:
+                    start_data_time = self.times[0] 
+                
+                while self.running and idx < n_samples:
+                    current_data_time = self.times[idx]
+                    
+                    # Target elapsed time since start
+                    target_elapsed = current_data_time - start_data_time
+                    
+                    # Current real elapsed time
+                    real_elapsed = time.time() - start_real_time
+                    
+                    # Wait if we are ahead of schedule
+                    wait_time = target_elapsed - real_elapsed
+                    
+                    if wait_time > 0:
+                        time.sleep(wait_time)
+                    
+                    # Create packet
+                    t_vec = np.array([self.times[idx]])
+                    # Ensure shape is (1, n_ch)
+                    d_vec = self.exg[idx].reshape(1, -1)
+                    
+                    packet = MockPacket(t_vec, d_vec)
+                    self.receiver.update_buffer(packet)
+                    
+                    idx += 1
+                
+                print("[MockExplore] End of file reached or stopped.")
+                self.running = False
 
             def stop_acquisition(self):
                 self.running = False
 
             def disconnect(self):
                 pass
+        
+        return MockExplore(self)
+
+
+if __name__ == "__main__":
+    def create_dummy_data(filename):
+        n_samples = 100 
+        sampling_rate = 10 # Hz
+        timestamps = np.arange(n_samples) / sampling_rate
+        
+        n_channels = 4
+        data = np.zeros((n_samples, n_channels))
+        for i in range(n_samples):
+            for ch in range(n_channels):
+                data[i, ch] = i + (ch * 1000) 
+        
+        df = pd.DataFrame(data, columns=[f'ch{i+1}' for i in range(n_channels)])
+        df.insert(0, 'TimeStamp', timestamps)
+        df.to_csv(filename, index=False)
+        print(f"Created dummy CSV file: {filename} with {n_samples} samples.")
+
+    csv_filename = "test_data_temp.csv"
+    create_dummy_data(csv_filename)
+
+    # Use a small buffer size to demonstrate circular buffer behavior
+    buffer_size = 10
+    params = {
+        'input_mode': 'file',
+        'data_path': csv_filename,
+        'buffer_size': buffer_size,
+        'silent': False
+    }
+
+    try:
+        print(f"Initializing EEG_Receiver with buffer_size={buffer_size}...")
+        receiver = EEG_Receiver(params)
+        
+        print("Starting EEG Receiver thread...")
+        receiver.start()
+        
+        start_monitor_time = time.time()
+        duration = 3.0 
+        
+        print("\n=== Monitoring Buffer State (Circular Queue) ===")
+        
+        last_count = 0
+        while time.time() - start_monitor_time < duration:
+            time.sleep(0.5)
+            
+            if not receiver.is_alive():
+                print("Receiver thread finished.")
+                break
+                
+            buffer_data = receiver.get_buffer_data()
+            current_count = len(buffer_data)
+            
+            print(f"\nTime: {time.time() - start_monitor_time:.1f}s | Buffer Size: {current_count}/{buffer_size}")
+            
+            if current_count > 0:
+                print(f"  Oldest timestamp: {buffer_data[0][0]:.2f}")
+                if current_count > 1:
+                    print(f"  Newest timestamp: {buffer_data[-1][0]:.2f}")
+                # print last sample content to verify data
+                print(f"  Newest Data: {buffer_data[-1][1:]}")
+                
+            last_count = current_count
+        
+        print("\nStop monitoring.")
+        
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        
+    finally:
+        if 'receiver' in locals() and receiver.is_alive():
+            print("Stopping receiver...")
+            receiver.stop()
+            receiver.join()
+            
+        if os.path.exists(csv_filename):
+            os.remove(csv_filename)
+            print(f"Removed temp file: {csv_filename}")
         
 
