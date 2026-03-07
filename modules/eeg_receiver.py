@@ -247,9 +247,14 @@ if __name__ == "__main__":
 
     # Use a small buffer size to demonstrate circular buffer behavior
     buffer_size = 1250
+    # params = {
+    #     'input_mode': 'file',
+    #     'data_path': csv_filename,
+    #     'buffer_size': buffer_size,
+    #     'silent': False
+    # }
     params = {
-        'input_mode': 'file',
-        'data_path': csv_filename,
+        'input_mode': 'device',
         'buffer_size': buffer_size,
         'silent': False
     }

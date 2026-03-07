@@ -22,8 +22,8 @@ class Wheelchair_Controller:
         self.debug_mode = config.get('debug_mode', True) # Default to True for safety if not specified
         
         # Constants from legacy move_wheel
-        self.NEUTRAL_TARGET = 2048
-        self.SPEED_SCALE = 200 # Maps -1.0..1.0 speed to roughly +/- 200 units around 2048
+        self.NEUTRAL_TARGET = config.get('neutral_target', 2048)
+        self.SPEED_SCALE = config.get('speed_scale', 200) # Maps -1.0..1.0 speed to roughly +/- 200 units around 2048
         
         print(f"[Wheelchair_Controller] Initialized. Debug Mode: {self.debug_mode}")
         
