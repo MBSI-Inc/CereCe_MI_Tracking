@@ -1,30 +1,55 @@
+#
+# CereCe_MI_Tracking Configuration
+#
+
+# --- System ---
+# Main control loop interval in seconds (Target: 20Hz = 0.05s)
+loop_interval: 0.05       
+
+
+# --- EEG Receiver ---
 receiver_params: 
-  input_mode: 'file'    # you can choose between 'file' and 'device' as input source
-  data_path: 'data/eeg_data.npy'            # Path to the EEG data file (used if input_mode is 'file')
-  device_name: 'Explore_842F'               # Name of the EEG device (used if input_mode is 'device')
-  buffer_size: 2000                    # Size of the internal buffer to store EEG samples
+  input_mode: 'file'          # 'file' (replay from CSV) or 'device' (ExplorePy)
+  data_path: 'data/MItest_24-01-27_ExG.csv'  # Path to CSV file for 'file' mode
+  device_name: 'Explore_842F' # Bluetooth name of the ExplorePy device
+  buffer_size: 2000           # Internal buffer size (number of samples)
 
 
+# --- MI Predictor ---
 predictor_params: 
-  CH_LABELS: ["Fcz", "C3", "Cz", "C4"]         # List of EEG channel labels
-  lowcut: 8.0           # Low cut frequency for bandpass filter
-  highcut: 30.0         # High cut frequency for bandpass filter
-  order: 5              # Order of the filter
-  window_size: 1.0      # Size of the EEG data window in seconds
-  step_size: 0.5        # Step size for moving the EEG data window in seconds
-  pre_train_model_path: 'models/mi_classifier.pkl'        # Path to the pre-trained MI classification model
+  sf: 250                     # Sampling frequency (Hz)
+  n_ch: 4                     # Number of EEG channels
+  channels:                   # Channel labels (must match model training)
+    - "Fcz" 
+    - "C3" 
+    - "Cz" 
+    - "C4"
+  low_freq: 8.0               # Bandpass filter low cut (Hz)
+  high_freq: 30.0             # Bandpass filter high cut (Hz)
+  signal_len: 2.0             # Window length for prediction (seconds)
+  model_path: 'models/LDA/MItest_24-01-27.sav' # Path to trained model (.sav or .pkl)
 
 
+# --- Evidence Accumulator ---
 accumulator_params: 
-  threshold: 3          # Evidence threshold for making a decision
-  decay: 0.9            # Decay factor for evidence accumulation
-  stable_count: 5       # Number of consecutive stable commands required to issue a command
+  threshold: 3.0              # Evidence threshold to trigger a command
+  decay: 0.2                  # Amount to decrease evidence per step (Linear decay)
+  build_rate: 1.0             # Amount to increase evidence per matching prediction
+  max_evidence: 5.0           # Maximum evidence value (clamping)
+  hysteresis_factor: 0.6      # Factor for de-trigger threshold (drop-off level)
 
 
+# --- Wheelchair Controller ---
 control_params:
-  left_wheel_speed: 1.0     # Speed for left wheel when moving left
-  right_wheel_speed: 1.0    # Speed for right wheel when moving right
-  stop_speed: 0.0           # Speed for stopping the wheelchair
-
-loop_interval: 0.05         # Control loop interval in seconds (20Hz)
+  # Connection
+  left_motor_id: '00408146'   # Serial number of Left Motor Controller (Jrk)
+  right_motor_id: '00453644'  # Serial number of Right Motor Controller (Jrk)
+  
+  # Operation
+  base_speed: 1.0             # Overall speed multiplier (0.0 to 1.0)
+  debug_mode: True            # If True, skips actual motor commands (safe mode)
+  
+  # Hardware Calibration
+  neutral_target: 2048        # Servo neutral position (Jrk specific)
+  speed_scale: 200            # Servo speed scaling factor (Jrk specific)
 
