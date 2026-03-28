@@ -160,18 +160,45 @@ if __name__ == "__main__":
     print("--- Testing Wheelchair Controller (Debug Mode) ---")
     
     config = {
-        'debug_mode': True, 
+        'debug_mode': False, 
         'left_motor_id': 'TEST_L', 
         'right_motor_id': 'TEST_R'
     }
-    
+
     ctrl = Wheelchair_Controller(config)
+
+    print('Commands: 1=Left Turn, 2=Right Turn, 3=Stop, 4=Exit')
+
+    while True:
+        choice = input("> ")
+        choice = choice.lower() #Convert input to "lowercase"
+
+        if choice == 'exit':
+            print("Good bye.")
+            break
+
+        if choice == '1':
+            print("\n1. Testing Left Turn")
+            ctrl.move_left()
+
+        if choice == '2':
+            print("\n2. Testing Right Turn")
+            ctrl.move_right()
+
+        if choice == '3':
+            print("\n3. Testing Stop")
+            ctrl.stop()
+
+        if choice == '4':
+            print("Good bye.")
+            break
+        else:
+            continue
     
-    print("\n1. Testing Left Turn")
-    ctrl.move_left()
     
-    print("\n2. Testing Right Turn")
-    ctrl.move_right()
     
-    print("\n3. Testing Stop")
-    ctrl.stop()
+   
+    
+   
+    
+    

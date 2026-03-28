@@ -224,35 +224,38 @@ class EEG_Receiver(Thread):
 
 
 if __name__ == "__main__":
-    def create_dummy_data(filename):
-        n_samples = 70818 
-        sampling_rate = 250 # Hz
-        timestamps = np.arange(n_samples) / sampling_rate
+    # def create_dummy_data(filename):
+    #     n_samples = 70818 
+    #     sampling_rate = 250 # Hz
+    #     timestamps = np.arange(n_samples) / sampling_rate
         
-        n_channels = 4
-        data = np.zeros((n_samples, n_channels))
-        for i in range(n_samples):
-            for ch in range(n_channels):
-                data[i, ch] = i + (ch * 1000) 
+    #     n_channels = 4
+    #     data = np.zeros((n_samples, n_channels))
+    #     for i in range(n_samples):
+    #         for ch in range(n_channels):
+    #             data[i, ch] = i + (ch * 1000) 
         
-        df = pd.DataFrame(data, columns=[f'ch{i+1}' for i in range(n_channels)])
-        df.insert(0, 'TimeStamp', timestamps)
-        df.to_csv(filename, index=False)
-        print(f"Created dummy CSV file: {filename} with {n_samples} samples.")
+    #     df = pd.DataFrame(data, columns=[f'ch{i+1}' for i in range(n_channels)])
+    #     df.insert(0, 'TimeStamp', timestamps)
+    #     df.to_csv(filename, index=False)
+    #     print(f"Created dummy CSV file: {filename} with {n_samples} samples.")
 
     # csv_filename = "test_data_temp.csv"
     # create_dummy_data(csv_filename)
-    csv_filename = "../data/MItest_24-01-27_ExG.csv"
+    # csv_filename = "../data/MItest_24-01-27_ExG.csv"
     
 
     # Use a small buffer size to demonstrate circular buffer behavior
-    buffer_size = 1250
+    # buffer_size = 1250
     # params = {
     #     'input_mode': 'file',
     #     'data_path': csv_filename,
     #     'buffer_size': buffer_size,
     #     'silent': False
     # }
+
+    
+    buffer_size = 1250
     params = {
         'input_mode': 'device',
         'buffer_size': buffer_size,
