@@ -26,7 +26,7 @@ class EEG_Receiver(Thread):
 
     def __init__(self, params):
         super().__init__()
-        self.mode = params.get('input_mode', 'file')    # input from 'file' or 'device'
+        self.mode = params.get('input_mode', 'device')    # input from 'file' or 'device'
         self.running = False       
         self.daemon = True        
         self.buffer = deque(maxlen=params.get('buffer_size', 300)) # buffer shape: (buffer_size(timestamp), n_ch)
@@ -40,9 +40,9 @@ class EEG_Receiver(Thread):
         
         elif self.mode == 'device':
             print(f"[Receiver] Input Mode: Device")
-            self.device_name = params.get('device_name', 'Explore EEG Device')
-            explorer = Explore()
-            explorer.connect(device_name=self.device_name)
+            self.device_name = params.get('device_name', 'Explore_842F')
+            self.explorer = Explore()
+            self.explorer.connect(device_name=self.device_name)
 
             ## TODO: add timestamp verification and impedance verification here
         else:
@@ -92,6 +92,7 @@ class EEG_Receiver(Thread):
         '''
         # get data from the packet
         t_vector, exg_data = packet.get_data() # t_vector: (N,), exg_data: (N, n_ch)
+        print("t_vector" + t_vector)
         # Acquire lock to safely update the buffer
         with self.buffer_lock:
             # put each sample into the buffer queue
