@@ -92,7 +92,7 @@ class EEG_Receiver(Thread):
         '''
         # get data from the packet
         t_vector, exg_data = packet.get_data() # t_vector: (N,), exg_data: (N, n_ch)
-        print("t_vector" + t_vector)
+        print("t_vector", t_vector)
         # Acquire lock to safely update the buffer
         with self.buffer_lock:
             # put each sample into the buffer queue
