@@ -54,6 +54,14 @@ class Wheelchair_Controller:
         self._move_wheel(speed=1.0, is_right_wheel=False)
         self._move_wheel(speed=-1.0, is_right_wheel=True)
 
+    def move_forward(self):
+        self._move_wheel(speed=-1.0, is_right_wheel=False)
+        self._move_wheel(speed=-1.0, is_right_wheel=True)
+
+    def move_backward(self):
+        self._move_wheel(speed=1.0, is_right_wheel=False)
+        self._move_wheel(speed=1.0, is_right_wheel=True)
+
     def stop(self):
         """
         Stop motors.
@@ -160,14 +168,12 @@ if __name__ == "__main__":
     print("--- Testing Wheelchair Controller (Debug Mode) ---")
     
     config = {
-        'debug_mode': False, 
-        'left_motor_id': 'TEST_L', 
-        'right_motor_id': 'TEST_R'
+        'debug_mode': False
     }
 
     ctrl = Wheelchair_Controller(config)
 
-    print('Commands: 1=Left Turn, 2=Right Turn, 3=Stop, 4=Exit')
+    print('Commands: 1=Left Turn, 2=Right Turn, 3=Stop, 4=Backward, 5=Forward, 6=Exit')
 
     while True:
         choice = input("> ")
@@ -190,6 +196,14 @@ if __name__ == "__main__":
             ctrl.stop()
 
         if choice == '4':
+            print("\n4. Testing Backwards")
+            ctrl.move_backward()
+
+        if choice == '5':
+            print("\n5. Testing Forward")
+            ctrl.move_forward()
+
+        if choice == '6':
             print("Good bye.")
             break
         else:
