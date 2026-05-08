@@ -1,6 +1,6 @@
 import subprocess
 import time
-#hey make changes
+
 class Wheelchair_Controller:
     """
     Control class for the wheelchair motors using jrk2cmd.
@@ -25,6 +25,10 @@ class Wheelchair_Controller:
         self.NEUTRAL_TARGET = config.get('neutral_target', 2048)
         self.SPEED_SCALE = config.get('speed_scale', 200) # Maps -1.0..1.0 speed to roughly +/- 200 units around 2048
         
+        # Speed state variables
+        self.left_speed = 1.0
+        self.right_speed = 1.0
+
         print(f"[Wheelchair_Controller] Initialized. Debug Mode: {self.debug_mode}")
         
         # Ensure devices are reachable (Optional check on startup)
@@ -40,8 +44,8 @@ class Wheelchair_Controller:
             move_wheel(1, True)   -> Right Wheel Forwards
         """
         # Left wheel Backward (-1.0), Right wheel Forward (1.0)
-        self._move_wheel(speed=-1.0, is_right_wheel=False) 
-        self._move_wheel(speed=1.0, is_right_wheel=True)
+        self._move_wheel(speed= -1.0 * self.left_speed, is_right_wheel=False) 
+        self._move_wheel(speed= 1.0 * self.right_speed, is_right_wheel=True)
 
     def move_right(self):
         """
@@ -51,8 +55,16 @@ class Wheelchair_Controller:
             move_wheel(-1, True)  -> Right Wheel Backwards
         """
         # Left wheel Forward (1.0), Right wheel Backward (-1.0)
-        self._move_wheel(speed=1.0, is_right_wheel=False)
-        self._move_wheel(speed=-1.0, is_right_wheel=True)
+        self._move_wheel(speed= 1.0 * self.left_speed, is_right_wheel=False)
+        self._move_wheel(speed= -1.0 * self.right_speed, is_right_wheel=True)
+
+    def move_forward(self):
+        self._move_wheel(speed= 1.0 * self.left_speed, is_right_wheel=False)
+        self._move_wheel(speed= 1.0 * self.right_speed, is_right_wheel=True)
+
+    def move_backward(self):
+        self._move_wheel(speed= -1.0 * self.left_speed, is_right_wheel=False)
+        self._move_wheel(speed= -1.0 * self.right_speed, is_right_wheel=True)
 
     def stop(self):
         """
@@ -71,7 +83,7 @@ class Wheelchair_Controller:
         Internal helper to execute movement command for a single wheel.
         """
         # Clamp input speed
-        clamped_speed = max(-1.0, min(1.0, speed))
+        clamped_speed = max(-1.5, min(1.5, speed))
         
         # Apply base speed multiplier
         final_speed = clamped_speed * self.base_speed
@@ -156,49 +168,76 @@ class Wheelchair_Controller:
             print(f"[Controller] Warning: Device {device_id} not responding.")
 
 if __name__ == "__main__":
+
+    SPEED_INCREMENT = 0.05
+    MIN_SPEED = 0.5
+    MAX_SPEED = 1.5
+
     # Unit Test intended for reconstruction folder execution
     print("--- Testing Wheelchair Controller (Debug Mode) ---")
     
     config = {
-        'debug_mode': False, 
-        'left_motor_id': 'TEST_L', 
-        'right_motor_id': 'TEST_R'
+        'debug_mode': False
     }
 
     ctrl = Wheelchair_Controller(config)
 
-    print('Commands: 1=Left Turn, 2=Right Turn, 3=Stop, 4=Exit')
+    print('Commands: a=Left Turn, d=Right Turn, q=Stop, s=Backward, w=Forward, 1=Decrease left speed, 2=Increase left speed, 9=Decrease right speed, 0=Increase right speed, e=Exit')
 
     while True:
         choice = input("> ")
         choice = choice.lower() #Convert input to "lowercase"
 
-        if choice == 'exit':
-            print("Good bye.")
-            break
-
-        if choice == '1':
-            print("\n1. Testing Left Turn")
+        if choice == 'a':
+            print("\nTesting Left Turn")
             ctrl.move_left()
 
-        if choice == '2':
-            print("\n2. Testing Right Turn")
+        if choice == 'd':
+            print("\Testing Right Turn")
             ctrl.move_right()
 
-        if choice == '3':
-            print("\n3. Testing Stop")
+        if choice == 's':
+            print("\nTesting Backwards")
+            ctrl.move_backward()
+
+        if choice == 'w':
+            print("\nTesting Forward")
+            ctrl.move_forward()
+
+        if choice == '1':
+            ctrl.left_speed -= SPEED_INCREMENT
+            ctrl.left_speed = max(MIN_SPEED, min(MAX_SPEED, ctrl.left_speed))
+            print("\nLeft Speed decreased")
+            print(f"\nLeft speed = {ctrl.left_speed:.2f}")
+        
+        if choice == '2':
+            ctrl.left_speed += SPEED_INCREMENT
+            ctrl.left_speed = max(MIN_SPEED, min(MAX_SPEED, ctrl.left_speed))
+            print("\nLeft Speed increased")
+            print(f"\nLeft speed = {ctrl.left_speed:.2f}")
+
+        if choice == '9':
+            ctrl.right_speed -= SPEED_INCREMENT
+            ctrl.right_speed = max(MIN_SPEED, min(MAX_SPEED, ctrl.right_speed))
+            print("\Right Speed decreased")
+            print(f"\Right speed = {ctrl.right_speed:.2f}")
+        
+        if choice == '0':
+            ctrl.right_speed += SPEED_INCREMENT
+            ctrl.right_speed = max(MIN_SPEED, min(MAX_SPEED, ctrl.right_speed))
+            print("\Right Speed increased")
+            print(f"\Right speed = {ctrl.right_speed:.2f}")
+
+        if choice == 'q':
+            print("\Testing Stop")
             ctrl.stop()
 
-        if choice == '4':
+        if choice == 'e':
             print("Good bye.")
             break
         else:
             continue
-    
-    
-    
-   
-    
+
    
     
     
