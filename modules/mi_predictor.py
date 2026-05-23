@@ -57,6 +57,9 @@ class MI_Predictor:
             with open(model_path, "rb") as f:
                 model = pickle.load(f)
             return model
+        except ModuleNotFoundError as e:
+            print(f"Error loading model from {model_path}: {e}. Make sure scikit-learn is installed in the active Python environment.")
+            return None
         except Exception as e:
             print(f"Error loading model from {model_path}: {e}")
             return None
@@ -99,12 +102,20 @@ class MI_Predictor:
         
         # Feature Extraction
         psd_features = self._get_features(epoch)
-        
-        # Prediction
-        
-        # Feature Extraction
-        psd_features = self._get_features(epoch)
-        
+
+        # Validate feature length before prediction
+        expected_features = None
+        if self.model is not None:
+            expected_features = getattr(self.model, 'n_features_in_', None)
+            if expected_features is None and hasattr(self.model, 'coef_'):
+                expected_features = self.model.coef_.shape[1]
+        if expected_features is not None and len(psd_features) != expected_features:
+            print(
+                f"[MI_Predictor] Feature length mismatch: {len(psd_features)} extracted, "
+                f"model expects {expected_features}. Check low_freq/high_freq/channel config."
+            )
+            return 'none'
+
         # Prediction
         if self.model and len(psd_features) > 0:
             try:
@@ -112,14 +123,18 @@ class MI_Predictor:
                 prediction = self.model.predict([psd_features])[0]
                 
                 # tailored for specific model output
-                # Assuming 0 is Left, 1 is Right. 
-                # Adjust based on training labels if known. 
                 if prediction == 0:
                     return 'left'
                 elif prediction == 1:
                     return 'right'
                 else:
                     return 'none'
+            except ValueError as e:
+                expected = None
+                if hasattr(self.model, 'coef_'):
+                    expected = self.model.coef_.shape[1]
+                print(f"[MI_Predictor] Prediction error: {e}. features_len={len(psd_features)} expected={expected}")
+                return 'none'
             except Exception as e:
                 print(f"[MI_Predictor] Prediction error: {e}")
                 return 'none'
@@ -202,22 +217,23 @@ class MI_Predictor:
         # This assumes exact match. With nperseg=sf (1 sec), freq resolution is 1Hz.
         # So integer freqs should match exactly.
         
-        try:
-            # Try to match exact behavior if possible, or use robust argmax
-            idx_min = np.where(freqs == low)[0][0]
-            idx_max = np.where(freqs == high)[0][0]
-        except IndexError:
-            # Fallback to nearest if exact match fails
+        # Select PSD frequency bins inclusively between low and high.
+        mask = (freqs >= low) & (freqs <= high)
+        if not np.any(mask):
+            # Fallback to nearest indices if the exact frequency range is not available.
             idx_min = np.argmin(np.abs(freqs - low))
             idx_max = np.argmin(np.abs(freqs - high))
-            
-        # Old code: psds[:, low_ind[0][0] : high_ind[0][0]] (exclusive high)
-        psds = psds[:, idx_min:idx_max]
+            if idx_max < idx_min:
+                idx_min, idx_max = idx_max, idx_min
+            mask = np.zeros_like(freqs, dtype=bool)
+            mask[idx_min:idx_max + 1] = True
+
+        psds = psds[:, mask]
         
         # Flatten
         psds_flat = psds.ravel()
         
-        return psds_flat, freqs[idx_min:idx_max]
+        return psds_flat, freqs[mask]
 
 
 if __name__ == "__main__":
@@ -226,8 +242,8 @@ if __name__ == "__main__":
     
     config = {
         'sf': 250,
-        'low_freq': 7,
-        'high_freq': 30,
+        'low_freq': 8.0,
+        'high_freq': 30.0,
         'signal_len': 2, # Using 2 seconds for faster testing
         'n_ch': 4,
         'channels': ["Fcz", "C3", "Cz", "C4"],
@@ -296,8 +312,8 @@ if __name__ == "__main__":
             # Configure predictor with real model
             real_config = {
                 'sf': 250,
-                'low_freq': 7,
-                'high_freq': 30,
+                'low_freq': 8.0,
+                'high_freq': 30.0,
                 'signal_len': 5, # Standard 5s window
                 'n_ch': 4,
                 'channels': ["Fcz", "C3", "Cz", "C4"],

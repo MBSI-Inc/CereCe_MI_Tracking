@@ -305,14 +305,14 @@ if __name__ == "__main__":
             buffer_data = receiver.get_buffer_data()
             current_count = len(buffer_data)
             
-            print(f"\nTime: {time.time() - start_monitor_time:.1f}s | Buffer Size: {current_count}/{buffer_size}")
+            # print(f"\nTime: {time.time() - start_monitor_time:.1f}s | Buffer Size: {current_count}/{buffer_size}")
             
-            if current_count > 0:
-                print(f"  Oldest timestamp: {buffer_data[0][0]:.2f}")
-                if current_count > 1:
-                    print(f"  Newest timestamp: {buffer_data[-1][0]:.2f}")
-                # print last sample content to verify data
-                print(f"  Newest Data: {buffer_data[-1][1:]}")
+            # if current_count > 0:
+                # print(f"  Oldest timestamp: {buffer_data[0][0]:.2f}")
+                # if current_count > 1:
+                #     print(f"  Newest timestamp: {buffer_data[-1][0]:.2f}")
+                # # print last sample content to verify data
+                # print(f"  Newest Data: {buffer_data[-1][1:]}")
                 
             last_count = current_count
         
