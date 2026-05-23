@@ -9,7 +9,7 @@ loop_interval: 0.05
 
 # --- EEG Receiver ---
 receiver_params: 
-  input_mode: 'file'          # 'file' (replay from CSV) or 'device' (ExplorePy)
+  input_mode: 'device'          # 'file' (replay from CSV) or 'device' (ExplorePy)
   data_path: 'data/MItest_24-01-27_ExG.csv'  # Path to CSV file for 'file' mode
   device_name: 'Explore_842F' # Bluetooth name of the ExplorePy device
   buffer_size: 2000           # Internal buffer size (number of samples)
