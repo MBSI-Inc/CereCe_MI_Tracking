@@ -4,11 +4,11 @@
 
 # --- System ---
 # Main control loop interval in seconds (Target: 20Hz = 0.05s)
-loop_interval: 0.05       
+loop_interval: 0.05
 
 
 # --- EEG Receiver ---
-receiver_params: 
+receiver_params:
   input_mode: 'device'          # 'file' (replay from CSV) or 'device' (ExplorePy)
   data_path: 'data/MItest_24-01-27_ExG.csv'  # Path to CSV file for 'file' mode
   device_name: 'Explore_842F' # Bluetooth name of the ExplorePy device
@@ -16,27 +16,30 @@ receiver_params:
 
 
 # --- MI Predictor ---
-predictor_params: 
+predictor_params:
   sf: 250                     # Sampling frequency (Hz)
   n_ch: 4                     # Number of EEG channels
   channels:                   # Channel labels (must match model training)
-    - "Fcz" 
-    - "C3" 
-    - "Cz" 
+    - "Fcz"
+    - "C3"
+    - "Cz"
     - "C4"
   low_freq: 8.0               # Bandpass filter low cut (Hz)
   high_freq: 30.0             # Bandpass filter high cut (Hz)
   signal_len: 2.0             # Window length for prediction (seconds)
   model_path: 'models/LDA/MItest_24-01-27.sav' # Path to trained model (.sav or .pkl)
+  mi_threshold: 0.6           # Probability threshold for 'active' (grip) classification.
+                              # Raise to require more confident grip signal; lower to be more sensitive.
 
 
 # --- Evidence Accumulator ---
-accumulator_params: 
-  threshold: 3.0              # Evidence threshold to trigger a command
-  decay: 0.2                  # Amount to decrease evidence per step (Linear decay)
-  build_rate: 1.0             # Amount to increase evidence per matching prediction
+# Smooths the raw MI predictions to prevent rapid toggling of the active/inactive gate.
+accumulator_params:
+  threshold: 3.0              # Evidence required to trigger a state change
+  decay: 0.2                  # Evidence lost per loop tick when not reinforced
+  build_rate: 1.0             # Evidence gained per loop tick when prediction matches
   max_evidence: 5.0           # Maximum evidence value (clamping)
-  hysteresis_factor: 0.6      # Factor for de-trigger threshold (drop-off level)
+  hysteresis_factor: 0.6      # Drop-off factor: active state held until evidence < threshold * factor
 
 
 # --- Wheelchair Controller ---
@@ -44,12 +47,25 @@ control_params:
   # Connection
   left_motor_id: '00408146'   # Serial number of Left Motor Controller (Jrk)
   right_motor_id: '00453644'  # Serial number of Right Motor Controller (Jrk)
-  
+
   # Operation
   base_speed: 1.0             # Overall speed multiplier (0.0 to 1.0)
   debug_mode: True            # If True, skips actual motor commands (safe mode)
-  
+
   # Hardware Calibration
   neutral_target: 2048        # Servo neutral position (Jrk specific)
   speed_scale: 200            # Servo speed scaling factor (Jrk specific)
 
+
+# --- Gaze Receiver ---
+gaze_params:
+  config_path: 'config_gaze.json'  # GazeTracker JSON config (see config_gaze.json)
+
+  # Direction thresholds applied to GazeTracker output values.
+  # combined_gaze_horizontal range: -100 (full left) to +100 (full right)
+  # combined_gaze_vertical range (head-pose mode): varies with head pitch.
+  #   Head tilts forward (pitch < 0) → higher value → forward
+  #   Head tilts back   (pitch > 0) → lower value  → backward
+  horizontal_threshold: 50        # |horizontal| > this → left / right turn
+  vertical_forward_threshold: 30  # vertical > this → forward
+  vertical_backward_threshold: 0  # vertical < this → backward

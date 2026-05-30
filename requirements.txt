@@ -7,3 +7,7 @@ pyserial>=3.5
 PyYAML>=6.0
 matplotlib>=3.7.0
 pygame>=2.6.0
+
+# Cerebruh_Gaze_Tracking dependencies
+opencv-python>=4.5.0
+mediapipe==0.10.9

@@ -6,6 +6,8 @@ from modules.eeg_receiver import EEG_Receiver
 from modules.mi_predictor import MI_Predictor
 from modules.evidence_accumulator import Evidence_Accumulator
 from modules.wheelchair_controller import Wheelchair_Controller
+from modules.gaze_receiver import Gaze_Receiver
+
 
 def start_MI_Tracking(config_path):
 
@@ -13,63 +15,75 @@ def start_MI_Tracking(config_path):
     config = load_config(config_path)
 
     # --- Initialize Modules ---
-    receiver = EEG_Receiver(config['receiver_params']) 
-    predictor = MI_Predictor(config['predictor_params'])
+    receiver    = EEG_Receiver(config['receiver_params'])
+    predictor   = MI_Predictor(config['predictor_params'])
     accumulator = Evidence_Accumulator(config['accumulator_params'])
-    controller = Wheelchair_Controller(config['control_params'])
-    
-    # sonic module
+    controller  = Wheelchair_Controller(config['control_params'])
+    gaze        = Gaze_Receiver(config['gaze_params'])
 
-    # --- Start EEG Data Receiver ---
+    # --- Start Data Sources ---
     receiver.run()
+    gaze.start()
 
-    # --- Main Control Loop  ---
-    # Target control frequency: 20Hz (50ms interval)
+    # --- Main Control Loop ---
+    # Target control frequency: 20 Hz (50 ms interval)
     main_loop_interval = config.get('loop_interval', 0.05)
     print("[Main] Control loop started.")
+
     try:
         while True:
             loop_start = time.time()
-            # Retrieves all buffered data from the receiver, shape: (n_samples, 1(timestamp) + n_ch), type: np.array
+
+            # ── MI: determine active / inactive gate state ──────────────────
             data = receiver.get_buffer_data()
-
+            raw_mi = 'inactive'
             if len(data) > 0:
-                # preprocess and predict MI command
-                raw_prediction = predictor.process_and_predict(data)
+                raw_mi = predictor.process_and_predict(data)
 
-                if raw_prediction:
-                    # Evidence Accumulation (Smoothing)
-                    stable_cmd = accumulator.update(raw_prediction)
+            mi_state = accumulator.update(raw_mi)
 
-                    # Control Wheelchair based on stable command
-                    if stable_cmd == 'left':
-                        print("Moving Left")
-                        controller.move_left()
-                    elif stable_cmd == 'right':
-                        print("Moving Right")
-                        controller.move_right()
-                    else:
-                        # Default safe state: Stop if command is 'stop' or uncertain
-                        print("Stopping")
-                        controller.stop()
+            # ── Fused control: MI gate + Gaze direction ──────────────────────
+            if mi_state != 'active':
+                # MI says rest → stop regardless of where the user is looking
+                print("[Main] MI inactive — stopped")
+                controller.stop()
+            else:
+                # MI says grip → let gaze decide direction
+                direction = gaze.get_direction()
 
-            # Rate Limiting
-            # Ensures the loop runs at ~20Hz to prevent CPU saturation
-            elapsed = time.time() - loop_start
+                if direction == 'forward':
+                    print("[Main] Forward")
+                    controller.move_forward()
+                elif direction == 'backward':
+                    print("[Main] Backward")
+                    controller.move_backward()
+                elif direction == 'left':
+                    print("[Main] Left")
+                    controller.move_left()
+                elif direction == 'right':
+                    print("[Main] Right")
+                    controller.move_right()
+                else:
+                    # direction == 'stop' or None (gaze still warming up)
+                    print("[Main] Gaze centered / no face — stopped")
+                    controller.stop()
+
+            # ── Rate limiting: keep loop at ~20 Hz ──────────────────────────
+            elapsed    = time.time() - loop_start
             sleep_time = main_loop_interval - elapsed
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
     except KeyboardInterrupt:
-            print("\nStopping system...")
-            receiver.stop()
-            receiver.join()
+        print("\n[Main] Stopping system...")
+        gaze.stop()
+        receiver.stop()
+        receiver.join()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run the facemesh gaze tracker.")
+    parser = argparse.ArgumentParser(description="CereCe MI + Gaze wheelchair controller.")
     parser.add_argument('--config_path', type=str, default='config.yaml', help='Config file path')
     args = parser.parse_args()
 
-    # start MI tracking and control the wheelchair via EEG signals
     start_MI_Tracking(args.config_path)

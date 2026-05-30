@@ -21,7 +21,7 @@ def load_config(config_path):
             config = yaml.safe_load(f)
             
             # ensure top-level keys exist (optional) 
-            required_keys = ['receiver_params', 'predictor_params', 'accumulator_params', 'control_params']
+            required_keys = ['receiver_params', 'predictor_params', 'accumulator_params', 'control_params', 'gaze_params']
             for key in required_keys:
                 if key not in config:
                     print(f"Warning: Key '{key}' missing in config file!")
