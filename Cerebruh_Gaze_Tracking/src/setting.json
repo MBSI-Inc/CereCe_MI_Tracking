@@ -1,0 +1,6 @@
+{
+  "lock_on_time": 1.1,
+  "move_speed": 3.0,
+  "direction_box_width": 100.0,
+  "smoothing_factor": 1
+}
