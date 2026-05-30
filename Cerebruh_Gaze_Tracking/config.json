@@ -1,0 +1,21 @@
+{
+  "debug": true,
+  "unity_camera": false,
+  "scene_camera": false,
+  "controller_mode": 0,
+  "with_black_border": false,
+  "blink_to_recalibrate": false,
+  "cruise_control_enabled": false,
+  "use_boundary": false,
+  "center_offset": 0.01660317413429821,
+  "head_rotation_center_offset": 0,
+  "left_offset": 0.03023455430851781,
+  "right_offset": -0.014914522092121466,
+  "left_eye_closed_threshold": 3.16,
+  "right_eye_closed_threshold": 3.27,
+  "left_threshold": -0.09119629122362335,
+  "right_threshold": 0.05743495938872888,
+  "left_threshold_screenless": -0.17114152678542058,
+  "right_threshold_screenless": 0.24736159928923707,
+  "async_sampling_interval": 0.02
+}

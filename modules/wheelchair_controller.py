@@ -70,6 +70,14 @@ class Wheelchair_Controller:
         self._move_wheel(speed= 1.0 * self.left_speed, is_right_wheel=False)
         self._move_wheel(speed= 1.0 * self.right_speed, is_right_wheel=True)
 
+    def move_forward(self):
+        self._move_wheel(speed=-1.0, is_right_wheel=False)
+        self._move_wheel(speed=-1.0, is_right_wheel=True)
+
+    def move_backward(self):
+        self._move_wheel(speed=1.0, is_right_wheel=False)
+        self._move_wheel(speed=1.0, is_right_wheel=True)
+
     def stop(self):
         """
         Stop motors.
@@ -252,7 +260,7 @@ if __name__ == "__main__":
         if choice == 'q':
             print("\Testing Stop")
             ctrl.stop()
-
+            
         if choice == 'e':
             print("Good bye.")
             break

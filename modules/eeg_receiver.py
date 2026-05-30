@@ -90,17 +90,36 @@ class EEG_Receiver(Thread):
         args:
             packet: explorepy data packet
         '''
-        # get data from the packet
-        t_vector, exg_data = packet.get_data() # t_vector: (N,), exg_data: (N, n_ch)
-        print("t_vector", t_vector)
-        # Acquire lock to safely update the buffer
-        with self.buffer_lock:
-            # put each sample into the buffer queue
-            for i in range(exg_data.shape[0]):
-                time_stamp = t_vector[i]
-                sample = exg_data[i, :]
-                flat_sample = np.concatenate(([time_stamp], sample)) # shape: (1 + n_ch,)
-                self.buffer.append(flat_sample)  
+        try:
+            # get data from the packet
+            t_vector, exg_data = packet.get_data()  # t_vector: scalar or (N,), exg_data: (N, n_ch)
+            t_vector = np.asarray(t_vector)
+            if t_vector.ndim == 0:
+                t_vector = t_vector.reshape(1)
+
+            if exg_data.ndim == 1:
+                exg_data = exg_data.reshape(1, -1)
+
+            if exg_data.shape[0] != t_vector.shape[0]:
+                # If timestamp is a single scalar for a single sample packet,
+                # broadcast it to match the sample count when safe.
+                if t_vector.shape[0] == 1 and exg_data.shape[0] > 1:
+                    t_vector = np.full((exg_data.shape[0],), t_vector[0])
+                else:
+                    raise ValueError(
+                        f"Timestamp/sample mismatch: {t_vector.shape[0]} timestamps for {exg_data.shape[0]} samples"
+                    )
+
+            # Acquire lock to safely update the buffer
+            with self.buffer_lock:
+                # put each sample into the buffer queue
+                for i in range(exg_data.shape[0]):
+                    time_stamp = t_vector[i]
+                    sample = exg_data[i, :]
+                    flat_sample = np.concatenate(([time_stamp], sample))  # shape: (1 + n_ch,)
+                    self.buffer.append(flat_sample)
+        except Exception as e:
+            print(f"[Receiver] update_buffer error: {e}")
 
 
     def get_buffer_data(self):

@@ -4,13 +4,6 @@ import pandas as pd
 import os
 from scipy.signal import welch, butter, filtfilt
 
-# Import from the same package level assuming helper functions are available or redefine them
-# Since this is a standalone module in reconstruction/modules (conceptually), we might need to copy helper functions 
-# or import them if the path allows. The user said to "refactor the old code into mi_predictor.py".
-# I'll include the necessary helper functions as private methods or inner functions to be self-contained, 
-# or assume a utilities module exists if I prefer. 
-# Given the instructions, I should implement the logic directly or reuse.
-# For robustness, I will include the helper logic (filtering, etc.) within the class or as standalone functions in this file.
 
 class MI_Predictor:
     '''
@@ -41,16 +34,10 @@ class MI_Predictor:
         # Load Model
         self.model_path = config.get('model_path', 'models/LDA/MItest_24-01-27.sav')
         self.model = self._load_model(self.model_path)
-        
-        # Output mapping
-        # 0: Left, 1: Right (based on common MI paradigms, but need to verify with user's specific model output mapping)
-        # In old code: AsyncMICore returns predicted index.
-        # Check src/constants.py or src/async_mi_core.py for output mapping.
-        # src/constants.py: LEFT_CODE = "sw_12", RIGHT_CODE = "sw_13" but model likely predicts 0 or 1.
-        # In start_MI_tracking: 'left', 'right', 'stop'.
-        # I'll map the model output (likely 0 or 1) to 'left' or 'right'.
-        # Assuming model.predict returns [0] for Left and [1] for Right or similar.
-        # Let's assume 0 -> 'left', 1 -> 'right' for now, or return the raw prediction.
+
+        # Threshold for classifying model output as 'active' (label=1, grip).
+        # Uses predict_proba so this can be tuned without retraining.
+        self.mi_threshold = config.get('mi_threshold', 0.5)
 
     def _load_model(self, model_path):
         try:
@@ -64,14 +51,14 @@ class MI_Predictor:
     def process_and_predict(self, data):
         '''
         Process the incoming EEG data and return a prediction.
-        
+
         Args:
-            data: np.array of shape (n_samples, n_ch + 1) or (n_samples, n_ch). 
-                  The incoming data from EEG_Receiver. 
+            data: np.array of shape (n_samples, n_ch + 1) or (n_samples, n_ch).
+                  The incoming data from EEG_Receiver.
                   Expects timestamp in column 0 if n_ch + 1.
-        
+
         Returns:
-            prediction: 'left', 'right', or None
+            prediction: 'active' (grip detected, label=1) or 'inactive' (rest, label=0)
         '''
         
         # Handle data shape
@@ -88,7 +75,7 @@ class MI_Predictor:
         current_len = eeg_data.shape[0]
         if current_len < required_samples:
             print(f"[MI_Predictor] Insufficient data: {current_len}/{required_samples} samples. Skipping prediction.")
-            return 'none'
+            return 'inactive'
         
         # Slice the most recent window (signal_len)
         # Note: We process this window independently each time (stateless predictor).
@@ -101,29 +88,22 @@ class MI_Predictor:
         psd_features = self._get_features(epoch)
         
         # Prediction
-        
-        # Feature Extraction
-        psd_features = self._get_features(epoch)
-        
-        # Prediction
         if self.model and len(psd_features) > 0:
             try:
-                # model.predict expects (n_samples, n_features)
-                prediction = self.model.predict([psd_features])[0]
-                
-                # tailored for specific model output
-                # Assuming 0 is Left, 1 is Right. 
-                # Adjust based on training labels if known. 
-                if prediction == 0:
-                    return 'left'
-                elif prediction == 1:
-                    return 'right'
+                if hasattr(self.model, 'predict_proba'):
+                    # Use raw probability so mi_threshold is configurable
+                    proba = self.model.predict_proba([psd_features])[0]
+                    active_proba = proba[1]  # probability of label=1 (grip)
                 else:
-                    return 'none'
+                    # Fallback for models without predict_proba (e.g. LinearSVC)
+                    score = self.model.decision_function([psd_features])[0]
+                    active_proba = 1.0 / (1.0 + float(np.exp(-score)))  # sigmoid
+
+                return 'active' if active_proba >= self.mi_threshold else 'inactive'
             except Exception as e:
                 print(f"[MI_Predictor] Prediction error: {e}")
-                return 'none'
-        return 'none'
+                return 'inactive'
+        return 'inactive'
 
     def _get_features(self, epoch):
         '''
