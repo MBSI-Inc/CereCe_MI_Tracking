@@ -6,6 +6,13 @@
 # Main control loop interval in seconds (Target: 20Hz = 0.05s)
 loop_interval: 0.05
 
+# --- Module Enable/Disable ---
+# Set to false to disable problematic modules (e.g., disable 'eeg_receiver' if device has Bluetooth issues)
+modules:
+  eeg_receiver: true        # Enable EEG data acquisition
+  gaze_receiver: true       # Enable gaze tracking
+  wheelchair_controller: true  # Enable wheelchair motor control
+
 
 # --- EEG Receiver ---
 receiver_params:
@@ -42,6 +49,16 @@ accumulator_params:
   hysteresis_factor: 0.6      # Drop-off factor: active state held until evidence < threshold * factor
 
 
+# --- Gaze Receiver ---
+gaze_params:
+  config_path: 'config_gaze.json'  # GazeTracker JSON config (see config_gaze.json)
+  camera_index: 0             # Camera device index (0, 1, 2, etc.)
+  fallback_mode: false        # If true, use demo mode when camera unavailable
+  horizontal_threshold: 50      # |horizontal| > threshold → left/right turn
+  vertical_forward_threshold: 30  # vertical > threshold → forward
+  vertical_backward_threshold: 0  # vertical < threshold → backward
+
+
 # --- Wheelchair Controller ---
 control_params:
   # Connection
@@ -55,17 +72,3 @@ control_params:
   # Hardware Calibration
   neutral_target: 2048        # Servo neutral position (Jrk specific)
   speed_scale: 200            # Servo speed scaling factor (Jrk specific)
-
-
-# --- Gaze Receiver ---
-gaze_params:
-  config_path: 'config_gaze.json'  # GazeTracker JSON config (see config_gaze.json)
-
-  # Direction thresholds applied to GazeTracker output values.
-  # combined_gaze_horizontal range: -100 (full left) to +100 (full right)
-  # combined_gaze_vertical range (head-pose mode): varies with head pitch.
-  #   Head tilts forward (pitch < 0) → higher value → forward
-  #   Head tilts back   (pitch > 0) → lower value  → backward
-  horizontal_threshold: 50        # |horizontal| > this → left / right turn
-  vertical_forward_threshold: 30  # vertical > this → forward
-  vertical_backward_threshold: 0  # vertical < this → backward

@@ -1,5 +1,6 @@
 import argparse
 import time
+import cv2
 
 from utils.load_config import load_config
 from modules.eeg_receiver import EEG_Receiver
@@ -14,16 +15,25 @@ def start_MI_Tracking(config_path):
     # --- Load Configuration ---
     config = load_config(config_path)
 
+    # --- Module Enable/Disable Flags ---
+    modules_config = config.get('modules', {})
+    eeg_enabled = modules_config.get('eeg_receiver', True)
+    gaze_enabled = modules_config.get('gaze_receiver', True)
+    control_enabled = modules_config.get('wheelchair_controller', True)
+
     # --- Initialize Modules ---
-    receiver    = EEG_Receiver(config['receiver_params'])
-    predictor   = MI_Predictor(config['predictor_params'])
-    accumulator = Evidence_Accumulator(config['accumulator_params'])
-    controller  = Wheelchair_Controller(config['control_params'])
-    gaze        = Gaze_Receiver(config['gaze_params'])
+    receiver    = EEG_Receiver(config['receiver_params']) if eeg_enabled else None
+    predictor   = MI_Predictor(config['predictor_params']) if eeg_enabled else None
+    accumulator = Evidence_Accumulator(config['accumulator_params']) if eeg_enabled else None
+    controller  = Wheelchair_Controller(config['control_params']) if control_enabled else None
+    gaze        = Gaze_Receiver(config['gaze_params']) if gaze_enabled else None
+    show_camera_ui = config.get('show_camera_ui', True)
 
     # --- Start Data Sources ---
-    receiver.run()
-    gaze.start()
+    if receiver is not None:
+        receiver.start()
+    if gaze is not None:
+        gaze.start()
 
     # --- Main Control Loop ---
     # Target control frequency: 20 Hz (50 ms interval)
@@ -35,21 +45,32 @@ def start_MI_Tracking(config_path):
             loop_start = time.time()
 
             # ── MI: determine active / inactive gate state ──────────────────
-            data = receiver.get_buffer_data()
-            raw_mi = 'inactive'
-            if len(data) > 0:
-                raw_mi = predictor.process_and_predict(data)
+            if eeg_enabled:
+                data = receiver.get_buffer_data()
+                raw_mi = 'inactive'
+                if len(data) > 0:
+                    raw_mi = predictor.process_and_predict(data)
 
-            mi_state = accumulator.update(raw_mi)
+                mi_state = accumulator.update(raw_mi)
+            else:
+                # EEG disabled: always treat as 'active' to allow gaze-only control
+                mi_state = 'active'
+                print("[Main] EEG disabled - gaze-only mode")
 
             # ── Fused control: MI gate + Gaze direction ──────────────────────
-            if mi_state != 'active':
+            direction = None
+            if not control_enabled:
+                # Controller disabled: just print direction without moving
+                if gaze_enabled:
+                    direction = gaze.get_direction()
+                    print(f"[Main] [GAZE-ONLY] Direction: {direction}")
+            elif mi_state != 'active':
                 # MI says rest → stop regardless of where the user is looking
                 print("[Main] MI inactive — stopped")
                 controller.stop()
             else:
                 # MI says grip → let gaze decide direction
-                direction = gaze.get_direction()
+                direction = gaze.get_direction() if gaze_enabled else 'stop'
 
                 if direction == 'forward':
                     print("[Main] Forward")
@@ -68,6 +89,16 @@ def start_MI_Tracking(config_path):
                     print("[Main] Gaze centered / no face — stopped")
                     controller.stop()
 
+            if gaze_enabled and show_camera_ui:
+                frame = gaze.get_frame()
+                if frame is not None:
+                    direction_text = direction if direction is not None else 'warming up'
+                    cv2.putText(frame, f'Direction: {direction_text}', (20, 40),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2, cv2.LINE_AA)
+                    cv2.imshow('Camera UI', frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        raise KeyboardInterrupt
+
             # ── Rate limiting: keep loop at ~20 Hz ──────────────────────────
             elapsed    = time.time() - loop_start
             sleep_time = main_loop_interval - elapsed
@@ -76,9 +107,13 @@ def start_MI_Tracking(config_path):
 
     except KeyboardInterrupt:
         print("\n[Main] Stopping system...")
-        gaze.stop()
-        receiver.stop()
-        receiver.join()
+        if gaze is not None:
+            gaze.stop()
+        if receiver is not None:
+            receiver.stop()
+            receiver.join()
+    finally:
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":

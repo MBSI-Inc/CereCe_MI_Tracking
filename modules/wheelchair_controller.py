@@ -1,5 +1,6 @@
 import subprocess
 import time
+import shutil
 
 class Wheelchair_Controller:
     """
@@ -8,6 +9,7 @@ class Wheelchair_Controller:
     Refactored from legacy 'a.py' to fit the new architecture.
     Provides high-level commands (move_left, move_right, stop) used by main.py.
     """
+    DEFAULT_SPEED = 1.0
     
     def __init__(self, config):
         self.config = config
@@ -29,14 +31,16 @@ class Wheelchair_Controller:
         self.SPEED_SCALE = config.get('speed_scale', 200) # Maps -1.0..1.0 speed to roughly +/- 200 units around 2048
         
         # Speed state variables
-        self.left_speed = DEFAULT_SPEED
-        self.right_speed = DEFAULT_SPEED
+        self.left_speed = config.get('left_speed', self.DEFAULT_SPEED)
+        self.right_speed = config.get('right_speed', self.DEFAULT_SPEED)
+        self.jrk2cmd_available = shutil.which('jrk2cmd') is not None
 
         print(f"[Wheelchair_Controller] Initialized. Debug Mode: {self.debug_mode}")
+        if not self.jrk2cmd_available:
+            print('[Controller] Warning: jrk2cmd not found in PATH. Hardware commands will not be sent.')
         
         # Ensure devices are reachable (Optional check on startup)
-        # if not self.debug_mode:
-        if True:
+        if not self.debug_mode:
             self._verify_connection(self.LEFT_MOTOR_ID)
             self._verify_connection(self.RIGHT_MOTOR_ID)
 
@@ -69,14 +73,6 @@ class Wheelchair_Controller:
     def move_backward(self):
         self._move_wheel(speed= 1.0 * self.left_speed, is_right_wheel=False)
         self._move_wheel(speed= 1.0 * self.right_speed, is_right_wheel=True)
-
-    def move_forward(self):
-        self._move_wheel(speed=-1.0, is_right_wheel=False)
-        self._move_wheel(speed=-1.0, is_right_wheel=True)
-
-    def move_backward(self):
-        self._move_wheel(speed=1.0, is_right_wheel=False)
-        self._move_wheel(speed=1.0, is_right_wheel=True)
 
     def stop(self):
         """
@@ -163,8 +159,11 @@ class Wheelchair_Controller:
     def _send_jrk_cmd(self, device_id, *args):
         """Run jrk2cmd via subprocess."""
         cmd = ['jrk2cmd', '--device', str(device_id)] + list(args)
+        if not self.jrk2cmd_available:
+            print(f"[Controller] Skipping hardware command because jrk2cmd is unavailable: {' '.join(cmd)}")
+            return
+
         try:
-            # Using check_call or run to avoid blocking too long/capturing huge output
             subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except subprocess.CalledProcessError:
             print(f"[Controller] Error sending command to device {device_id}")
@@ -175,6 +174,10 @@ class Wheelchair_Controller:
 
     def _verify_connection(self, device_id):
         """Lightweight check if device exists."""
+        if not self.jrk2cmd_available:
+            print(f"[Controller] Skipping status check for {device_id}: jrk2cmd unavailable.")
+            return
+
         try:
             subprocess.run(['jrk2cmd', '--device', str(device_id), '--status'], 
                            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

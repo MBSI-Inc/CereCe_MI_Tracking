@@ -2,7 +2,7 @@ numpy==1.26.4
 scipy==1.13.0
 scikit-learn==1.5.1
 pandas>=2.2.3
-explorepy==1.8.0
+explorepy==1.8.2
 pyserial>=3.5
 PyYAML>=6.0
 matplotlib>=3.7.0

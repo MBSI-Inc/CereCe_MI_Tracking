@@ -1,0 +1,57 @@
+#
+# CereCe_MI_Tracking Configuration - GAZE-ONLY MODE
+#
+
+# --- System ---
+loop_interval: 0.05
+
+# --- Module Enable/Disable ---
+modules:
+  eeg_receiver: false       # DISABLED: Gaze-only mode
+  gaze_receiver: true       # Enable gaze tracking
+  wheelchair_controller: true   # Gaze directly drives motors
+
+# --- EEG Receiver (disabled but still needed for config)---
+receiver_params:
+  input_mode: 'device'
+  data_path: 'data/MItest_24-01-27_ExG.csv'
+  device_name: 'Explore_842F'
+  buffer_size: 2000
+
+# --- MI Predictor (disabled but still needed for config)---
+predictor_params:
+  sf: 250
+  n_ch: 4
+  channels:
+    - "Fcz"
+    - "C3"
+    - "Cz"
+    - "C4"
+  low_freq: 8.0
+  high_freq: 30.0
+  signal_len: 2.0
+  model_path: 'models/LDA/MItest_24-01-27.sav'
+  mi_threshold: 0.6
+
+# --- Evidence Accumulator (disabled but still needed for config)---
+accumulator_params:
+  threshold: 3.0
+  decay: 0.2
+  build_rate: 1.0
+  max_evidence: 5.0
+  hysteresis_factor: 0.6
+
+# --- Gaze Receiver ---
+gaze_params:
+  config_path: 'config_gaze.json'  # Calibrated gaze config (run calibrate_gaze.py to update)
+  camera_index: 0             # Camera device index (0, 1, 2, etc.)
+  fallback_mode: false        # Require real camera
+  horizontal_threshold: 50      # |horizontal| > threshold → left/right turn
+  vertical_forward_threshold: 30  # vertical > threshold → forward
+  vertical_backward_threshold: 0  # vertical < threshold → backward
+
+
+# --- Wheelchair Controller (disabled but still needed for config)---
+control_params:
+  left_motor_id: '00408146'
+  right_motor_id: '00453644'

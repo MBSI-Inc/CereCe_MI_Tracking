@@ -19,34 +19,63 @@ class Gaze_Receiver:
 
     Expected config keys:
         config_path (str):              Path to the GazeTracker JSON config file.
+        camera_index (int):             Camera device index (default 0). Try 1, 2, etc. if 0 fails.
         horizontal_threshold (int):     |horizontal| > threshold → left/right turn.  Default 50.
         vertical_forward_threshold (int): vertical > threshold → forward.            Default 30.
         vertical_backward_threshold (int): vertical < threshold → backward.          Default 0.
+        fallback_mode (bool):           If True, use demo mode when camera unavailable (default False).
     """
 
     def __init__(self, config: dict):
         config_path = config.get('config_path', 'Cerebruh_Gaze_Tracking/config.json')
+        camera_index = config.get('camera_index', 0)
+        fallback_mode = config.get('fallback_mode', False)
         self.h_threshold  = config.get('horizontal_threshold', 50)
         self.v_forward    = config.get('vertical_forward_threshold', 30)
         self.v_backward   = config.get('vertical_backward_threshold', 0)
 
-        print(f"[Gaze_Receiver] Loading GazeTracker from: {config_path}")
-        self.tracker = GazeTracker(config_path)
-        print("[Gaze_Receiver] Initialized.")
+        self.tracker = None
+        self.demo_mode = False
+
+        print(f"[Gaze_Receiver] Loading GazeTracker from: {config_path} (camera_index={camera_index})")
+        try:
+            self.tracker = GazeTracker(config_path, cam_index=camera_index)
+            print("[Gaze_Receiver] Initialized with real camera.")
+        except RuntimeError as e:
+            if fallback_mode:
+                print(f"[Gaze_Receiver] WARNING: Camera failed ({e}). Using DEMO mode.")
+                self.tracker = None
+                self.demo_mode = True
+            else:
+                raise
 
     def start(self):
         """Start the background tracking thread."""
+        if self.tracker is None:
+            print("[Gaze_Receiver] Demo mode: no tracking thread.")
+            return
         self.tracker.start()
         print("[Gaze_Receiver] Tracking thread started.")
 
     def stop(self):
         """Stop the background tracking thread."""
+        if self.tracker is None:
+            print("[Gaze_Receiver] Demo mode: nothing to stop.")
+            return
         self.tracker.stop()
         print("[Gaze_Receiver] Tracking thread stopped.")
 
     def get_raw(self) -> Optional[dict]:
         """Return the latest raw gaze output dict, or None if not yet available."""
+        if self.tracker is None:
+            return None
         return self.tracker.get_gaze_async()
+
+    def get_frame(self):
+        """Return the latest UI frame from the GazeTracker, or None if unavailable."""
+        if self.tracker is None:
+            return None
+        return self.tracker.get_frame()
 
     def get_direction(self) -> Optional[str]:
         """
@@ -59,6 +88,9 @@ class Gaze_Receiver:
         Priority: horizontal gaze takes precedence over vertical so that diagonal
         head poses are resolved as a turn rather than a forward/backward move.
         """
+        if self.demo_mode:
+            return 'stop'
+        
         data = self.get_raw()
         if data is None:
             return None
