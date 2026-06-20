@@ -4,8 +4,11 @@ import numpy as np
 import pandas as pd
 import time
 import os
-from explorepy import Explore
-from explorepy.stream_processor import TOPICS
+
+# ExplorePy is imported lazily to avoid top-level side-effects (dashboard/sentry imports)
+Explore = None
+TOPICS = None
+_ExploreImportError = None
 
 
 class EEG_Receiver(Thread):
@@ -39,10 +42,25 @@ class EEG_Receiver(Thread):
             self.explorer = self.simulate_device()
         
         elif self.mode == 'device':
-            print(f"[Receiver] Input Mode: Device")
-            self.device_name = params.get('device_name', 'Explore_842F')
-            self.explorer = Explore()
-            self.explorer.connect(device_name=self.device_name)
+            # Import explorepy here to avoid importing its dashboard/sentry at module import time
+            try:
+                from explorepy import Explore as _Explore
+                from explorepy.stream_processor import TOPICS as _TOPICS
+                self.device_name = params.get('device_name', 'Explore_842F')
+                print(f"[Receiver] Input Mode: Device")
+                self.explorer = _Explore()
+                self.explorer.connect(device_name=self.device_name)
+                # store local references
+                self._Explore = _Explore
+                self._TOPICS = _TOPICS
+            except Exception as e:
+                self.data_path = params.get('data_path', None)
+                if self.data_path:
+                    print("[Receiver] Warning: 'explorepy' import failed; switching to file mode using provided data_path.")
+                    self.mode = 'file'
+                    self.explorer = self.simulate_device()
+                else:
+                    raise ImportError(f"Could not import explorepy: {e}. Install explorepy or set 'input_mode' to 'file' with 'data_path'.")
 
             ## TODO: add timestamp verification and impedance verification here
         else:
@@ -54,9 +72,12 @@ class EEG_Receiver(Thread):
         self.running = True
         if self.mode == 'device':
             print("[Receiver] Thread started. listening to hardware...")
+            topics = getattr(self, '_TOPICS', TOPICS)
+            if topics is None:
+                raise RuntimeError('Explore TOPICS not available for subscription')
             self.explorer.stream_processor.subscribe(
                     callback=self.update_buffer,
-                    topic=TOPICS.raw_ExG
+                    topic=topics.raw_ExG
                 )     
             try:
                 self.explorer.acquire()

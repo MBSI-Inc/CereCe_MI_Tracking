@@ -47,9 +47,21 @@ control_params:
   
   # Operation
   base_speed: 1.0             # Overall speed multiplier (0.0 to 1.0)
-  debug_mode: True            # If True, skips actual motor commands (safe mode)
+  debug_mode: False           # If True, skips actual motor commands (safe mode)
   
   # Hardware Calibration
   neutral_target: 2048        # Servo neutral position (Jrk specific)
   speed_scale: 200            # Servo speed scaling factor (Jrk specific)
+
+
+# --- Gaze Controller ---
+gaze_params:
+  horizontal_threshold: 50.0      # Gaze value (0-100) to trigger left/right command
+  horizontal_deadband: 20.0       # Dead zone around center (no command issued)
+  vertical_forward_threshold: 30.0
+  vertical_backward_threshold: -25.0
+  display_frame: True             # Show camera feed window
+  face_required: True             # Stop motors if face not detected
+
+gaze_config_path: 'config.json'   # Resolved to Cerebruh_Gaze_Tracking/config.json
 

@@ -1,0 +1,11 @@
+# pip requirements for BCI-Gazetrack (use inside the conda env)
+explorepy==1.8.0
+opencv-python~=4.5
+mediapipe==0.10.9
+matplotlib
+autopep8
+pynput
+pyautogui
+playsound==1.2.2
+joblib
+threadpoolctl
