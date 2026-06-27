@@ -1,0 +1,70 @@
+#
+# CereCe_MI_Tracking Configuration - EEG-ONLY MODE
+#
+# EEG gates movement (active = go, inactive = stop).
+# Direction is controlled by WASD keyboard (no gaze camera needed).
+# Wheelchair is in debug mode — commands are printed, not sent to hardware.
+#
+
+# --- System ---
+loop_interval: 0.05
+show_camera_ui: true        # Keep UI open so WASD + Q-to-quit still work
+
+# --- Module Enable/Disable ---
+modules:
+  eeg_receiver: true        # EEG provides the active/inactive gate
+  gaze_receiver: false      # No camera — direction comes from keyboard
+  wheelchair_controller: true
+
+
+# --- EEG Receiver ---
+receiver_params:
+  input_mode: 'device'
+  data_path: 'data/MItest_24-01-27_ExG.csv'
+  device_name: 'Explore_842F'
+  buffer_size: 2000
+
+
+# --- MI Predictor ---
+predictor_params:
+  sf: 250
+  n_ch: 4
+  channels:
+    - "Fcz"
+    - "C3"
+    - "Cz"
+    - "C4"
+  low_freq: 7
+  high_freq: 30.0
+  signal_len: 2.0
+  model_path: 'models/LDA/MItest_24-01-27.sav'
+  mi_threshold: 0.6
+
+
+# --- Evidence Accumulator ---
+accumulator_params:
+  threshold: 3.0
+  decay: 0.2
+  build_rate: 1.0
+  max_evidence: 5.0
+  hysteresis_factor: 0.6
+
+
+# --- Gaze Receiver (disabled — params still required by loader) ---
+gaze_params:
+  config_path: 'config_gaze.json'
+  camera_index: 0
+  fallback_mode: false
+  horizontal_threshold: 50
+  vertical_forward_threshold: 30
+  vertical_backward_threshold: 0
+
+
+# --- Wheelchair Controller ---
+control_params:
+  left_motor_id: '00408146'
+  right_motor_id: '00453644'
+  base_speed: 1.0
+  debug_mode: true           # Prints commands without sending to hardware
+  neutral_target: 2048
+  speed_scale: 200

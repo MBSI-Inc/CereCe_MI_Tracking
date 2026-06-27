@@ -39,22 +39,25 @@ class Evidence_Accumulator:
         Updates the evidence accumulator with a new raw prediction and determines the stable command.
 
         Args:
-            raw_prediction (str): The latest prediction from MI_Predictor ('active', 'inactive').
+            raw_prediction (str): The latest prediction from MI_Predictor ('left', 'right', or 'none').
 
         Returns:
             str: The stabilized command ('active' or 'inactive').
         """
-        
+        # Normalize predictor output to accumulator vocabulary
+        if raw_prediction == 'active':
+            normalized = 'active'
+        else:  # 'none' or anything unexpected
+            normalized = 'inactive'
+
         # 1. Apply Decay to ALL evidence
         for key in self.evidence:
             self.evidence[key] = max(0.0, self.evidence[key] - self.decay)
 
         # 2. Add evidence for the current raw prediction
-        if raw_prediction in self.evidence:
-            # Boost the evidence for the matching class
-            self.evidence[raw_prediction] += self.build_rate
-            # Clamp to max_evidence
-            self.evidence[raw_prediction] = min(self.evidence[raw_prediction], self.max_evidence)
+        if normalized in self.evidence:
+            self.evidence[normalized] += self.build_rate
+            self.evidence[normalized] = min(self.evidence[normalized], self.max_evidence)
 
         # 3. Determine command based on thresholds and hysteresis
         

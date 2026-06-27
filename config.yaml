@@ -31,12 +31,10 @@ predictor_params:
     - "C3"
     - "Cz"
     - "C4"
-  low_freq: 8.0               # Bandpass filter low cut (Hz)
-  high_freq: 30.0             # Bandpass filter high cut (Hz)
-  signal_len: 2.0             # Window length for prediction (seconds)
-  model_path: 'models/LDA/MItest_24-01-27.sav' # Path to trained model (.sav or .pkl)
-  mi_threshold: 0.6           # Probability threshold for 'active' (grip) classification.
-                              # Raise to require more confident grip signal; lower to be more sensitive.
+  low_freq: 7                 # Bandpass filter low cut (Hz) — must match model training
+  high_freq: 30               # Bandpass filter high cut (Hz) — exclusive in PSD slicing (bins 7–29)
+  signal_len: 5               # Window length for prediction (seconds)
+  model_path: 'models/LDA/MItest_24-01-27.sav'
 
 
 # --- Evidence Accumulator ---

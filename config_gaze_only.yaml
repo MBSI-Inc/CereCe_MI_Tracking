@@ -27,9 +27,9 @@ predictor_params:
     - "C3"
     - "Cz"
     - "C4"
-  low_freq: 8.0
-  high_freq: 30.0
-  signal_len: 2.0
+  low_freq: 7
+  high_freq: 30
+  signal_len: 5
   model_path: 'models/LDA/MItest_24-01-27.sav'
   mi_threshold: 0.6
 
@@ -51,7 +51,11 @@ gaze_params:
   vertical_backward_threshold: 0  # vertical < threshold → backward
 
 
-# --- Wheelchair Controller (disabled but still needed for config)---
+# --- Wheelchair Controller ---
 control_params:
   left_motor_id: '00408146'
   right_motor_id: '00453644'
+  base_speed: 1.0
+  debug_mode: false           # Set true to print commands without sending to hardware
+  neutral_target: 2048
+  speed_scale: 200

@@ -4,8 +4,12 @@ import numpy as np
 import pandas as pd
 import time
 import os
+import sys
+import logging
 from explorepy import Explore
 from explorepy.stream_processor import TOPICS
+
+_log = logging.getLogger(__name__)
 
 
 class EEG_Receiver(Thread):
@@ -27,10 +31,12 @@ class EEG_Receiver(Thread):
     def __init__(self, params):
         super().__init__()
         self.mode = params.get('input_mode', 'device')    # input from 'file' or 'device'
-        self.running = False       
-        self.daemon = True        
+        self.running = False
+        self.daemon = True
         self.buffer = deque(maxlen=params.get('buffer_size', 300)) # buffer shape: (buffer_size(timestamp), n_ch)
         self.buffer_lock = Lock()
+        self.connected = False
+        self.last_data_time = None
 
 
         if self.mode == 'file':
@@ -41,10 +47,24 @@ class EEG_Receiver(Thread):
         elif self.mode == 'device':
             print(f"[Receiver] Input Mode: Device")
             self.device_name = params.get('device_name', 'Explore_842F')
+
+            if sys.platform.startswith('linux'):
+                # The Mentalab C++ SDK drops the RFCOMM connection ~45ms after
+                # streaming starts on Linux. Replace it with a pure Python socket
+                # shim that does exact reads and stays stable.
+                from explorepy import btcpp as _btcpp
+                from modules import explorepy_linux_socket_shim as _shim
+                _btcpp.exploresdk = _shim
+
+                # The C++ error-report prompt blocks stdin; redirect to /dev/null
+                # so it auto-answers with EOF.
+                _null_fd = os.open('/dev/null', os.O_RDONLY)
+                os.dup2(_null_fd, 0)
+                os.close(_null_fd)
+
             self.explorer = Explore()
             self.explorer.connect(device_name=self.device_name)
-
-            ## TODO: add timestamp verification and impedance verification here
+            self.connected = True
         else:
             raise ValueError(f"Unknown mode: {self.mode}")
 
@@ -57,12 +77,11 @@ class EEG_Receiver(Thread):
             self.explorer.stream_processor.subscribe(
                     callback=self.update_buffer,
                     topic=TOPICS.raw_ExG
-                )     
-            try:
-                self.explorer.acquire()
-            except Exception as e:
-                print(f"Error: {e}")
-                self.running = False
+                )
+            # The parser thread started by connect() streams data to our callback;
+            # we just keep this thread alive until stop() is called.
+            while self.running:
+                time.sleep(0.1)
 
         elif self.mode == 'file':
             print(f"[Receiver] Thread started. reading from file: {self.data_path}...")
@@ -74,7 +93,6 @@ class EEG_Receiver(Thread):
         self.running = False
         if self.mode == 'device':
             print("[Receiver] Stopping thread and disconnecting from device...")
-            self.explorer.stop_acquisition()
             self.explorer.disconnect()
             
         elif self.mode == 'file':
@@ -84,12 +102,19 @@ class EEG_Receiver(Thread):
 
 
 
+    def is_healthy(self, timeout=5.0):
+        """Returns True if data has been received within the last `timeout` seconds."""
+        if not self.connected or self.last_data_time is None:
+            return False
+        return (time.time() - self.last_data_time) < timeout
+
     def update_buffer(self, packet):
         '''
         Callback function to update the buffer with new EEG data packets.
         args:
             packet: explorepy data packet
         '''
+        self.last_data_time = time.time()
         try:
             # get data from the packet
             t_vector, exg_data = packet.get_data()  # t_vector: scalar or (N,), exg_data: (N, n_ch)
@@ -305,14 +330,13 @@ if __name__ == "__main__":
             buffer_data = receiver.get_buffer_data()
             current_count = len(buffer_data)
             
-            print(f"\nTime: {time.time() - start_monitor_time:.1f}s | Buffer Size: {current_count}/{buffer_size}")
-            
-            if current_count > 0:
-                print(f"  Oldest timestamp: {buffer_data[0][0]:.2f}")
-                if current_count > 1:
-                    print(f"  Newest timestamp: {buffer_data[-1][0]:.2f}")
-                # print last sample content to verify data
-                print(f"  Newest Data: {buffer_data[-1][1:]}")
+            # print(f"\nTime: {time.time() - start_monitor_time:.1f}s | Buffer Size: {current_count}/{buffer_size}")
+
+            # if current_count > 0:
+                # print(f"  Oldest timestamp: {buffer_data[0][0]:.2f}")
+                # if current_count > 1:
+                #     print(f"  Newest timestamp: {buffer_data[-1][0]:.2f}")
+                # print(f"  Newest Data: {buffer_data[-1][1:]}")
                 
             last_count = current_count
         
