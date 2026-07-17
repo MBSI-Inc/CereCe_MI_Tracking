@@ -1,5 +1,7 @@
 import tkinter as tk
-
+from Bluetooth_UltrasonicSensor import ultrasonic_result
+import asyncio
+import threading
 # --- SETTINGS ---
 WINDOW_WIDTH = 600
 WINDOW_HEIGHT = 300
@@ -7,8 +9,25 @@ WINDOW_HEIGHT = 300
 #How to integrate: Must take in an input of distance & the respective sensor direction.
 
 # Simulated distance (replace this with your variable)
-distance = [60,60,60]  #['left','right','back']
-repeats = 3;
+distance = [120]  #['left','right','back'] -> Change to three repeats & values later when you have 3 modules
+#To test variations use 30,70,120.
+repeats = 1;
+
+# --- CREATE WINDOW ---
+root = tk.Tk()
+root.title("Ultrasonic Parking Display")
+
+canvas = tk.Canvas(root, width=WINDOW_WIDTH, height=WINDOW_HEIGHT, bg="white")
+canvas.pack()
+
+# --- DRAW CAR --- #To replace with an image of a wheelchair 
+car_x1 = 50
+car_x2 = 110
+car_y1 = 120
+car_y2 = 240
+
+canvas.create_rectangle(car_x1, car_y1, car_x2, car_y2, fill="black")
+
 # --- COLOR LOGIC ---
 def get_color(distance): #Returns a matrix of colours based on the distances
     colours = []
@@ -31,22 +50,6 @@ def get_wave_number(distance): #Return a matrix of wave number
         else:
             wave_number.append(1)
     return wave_number 
-
-# --- CREATE WINDOW ---
-root = tk.Tk()
-root.title("Ultrasonic Parking Display")
-
-canvas = tk.Canvas(root, width=WINDOW_WIDTH, height=WINDOW_HEIGHT, bg="white")
-canvas.pack()
-
-# --- DRAW CAR --- #To replace with an image of a wheelchair 
-car_x1 = 50
-car_x2 = 110
-car_y1 = 120
-car_y2 = 240
-
-canvas.create_rectangle(car_x1, car_y1, car_x2, car_y2, fill="black")
-
 
 # --- DRAW WAVES FUNCTION ---
 def draw_waves(distance):
@@ -79,12 +82,18 @@ def draw_waves(distance):
         )
 
 # --- UPDATE LOOP ---
-def update():
-    global distance
-    # Replace this with real sensor update
-    draw_waves(distance)
-    root.after(200, update)
+def on_ble_update(LHS, RHS):
+    global distance #update distance variable
+    avg = (LHS + RHS) / 2
+    distance = [avg]
+    root.after(0, draw_waves, distance) #runs draw_waves on main thread
 
-# --- START ---
-update()
+def start_ble_listener():
+    asyncio.run(ultrasonic_result(on_ble_update)) #whenever an update occur, on_ble_update will be run
+
+#By adding a thread, you allow things to occur simultaneously
+#main thread is Tkinter window, ble thread send BLE data
+ble_thread = threading.Thread(target=start_ble_listener, daemon=True)
+ble_thread.start()
+
 root.mainloop()
