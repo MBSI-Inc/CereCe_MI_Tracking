@@ -3,9 +3,12 @@ import asyncio
 
 DEVICE_NAME = "UltrasonicBLE"
 CHAR_UUID = "a4b5735b-6dd9-4680-ac4b-06b4a209bffa"
-async def main():
-    print("Scanning...")
 
+async def ultrasonic_result(callback_func):
+    max_dist = 50; #tune this
+    
+    print("Scanning...")
+    
     devices = await BleakScanner.discover() #Find all devices
     target_address = None
 
@@ -16,18 +19,23 @@ async def main():
 
     if target_address is None:
         print("Device not found")
+        #Light is off
         return
 
     print(f"Found device at {target_address}") #Finds MAC_address of device 
+    #Light turns on
     
     def handler(sender, data):
-        value = data.decode()
-        print("Warning value:", value)
-
-        if value == "1":
-            print("⚠️ OBJECT DETECTED")
-        else:
-            print("✅ Clear")
+        try:
+            distance_lhs, distance_rhs = map(float, data.decode().split(",")) #decodes bytes -> data and gets individual values
+            #map applies the float function to each number, making the string -> decimal
+            if distance_lhs < max_dist or distance_rhs < max_dist:
+                print("⚠️ OBJECT DETECTED")
+            else:
+                print("✅ Clear")
+            callback_func(distance_lhs, distance_rhs)
+        except Exception as e:
+            print(f"Error parsing BLE data: {e}")  
 
 
     async with BleakClient(target_address) as client:
@@ -36,5 +44,7 @@ async def main():
         print("Listening for updates...")
         while True: #Runs forever
             await asyncio.sleep(1)
-
-asyncio.run(main())
+if __name__ == "__main__": #Skips everything after this if not imported
+    def dummy_callback(lhs, rhs):
+        print(f"LHS: {lhs} | RHS: {rhs}") 
+    asyncio.run(ultrasonic_result(dummy_callback))
