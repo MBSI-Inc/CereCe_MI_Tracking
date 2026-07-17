@@ -97,3 +97,10 @@ ble_thread = threading.Thread(target=start_ble_listener, daemon=True)
 ble_thread.start()
 
 root.mainloop()
+
+if __name__ == "__main__":
+    run_display()
+
+#if you want to use this in main.py
+#import UI_interface
+#UI_interface.run_display()
