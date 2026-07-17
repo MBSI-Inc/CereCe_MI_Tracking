@@ -11,9 +11,10 @@ float durationLHS, distanceLHS; //float variables to time taken for soundwave to
 const int trigPinRHS = D3; //define pin that trig is connected to
 const int echoPinRHS = D4; //define pin that echo is connected to 
 float durationRHS, distanceRHS; //float variables to time taken for soundwave to travel to object and back & how far away object is
-float max_dist = 15;
-bool warning = false;
-bool lastWarning = false;
+
+float lastDistanceLHS = -1;
+float lastDistanceRHS = -1;
+float changeThreshold = 0.5; // cm - only notify if distance changes by more than this, tune as needed
 
 //#define LED_Bluetooth 8
 const int LED_Bluetooth = D8;
@@ -79,7 +80,7 @@ void setup() {
     BLECharacteristic::PROPERTY_READ | //Only read the data 
     BLECharacteristic::PROPERTY_NOTIFY //Only send message if there are changes
     );
-  pCharacteristic->setValue(warning);
+  pCharacteristic->setValue("0.0,0.0");
   pService->start();
 
 
@@ -141,29 +142,25 @@ void loop()
     Serial.println(distanceLHS);
     Serial.print("DistanceRHS: ");
     Serial.println(distanceRHS);
-    if (distanceRHS < max_dist || distanceLHS < max_dist){
-      warning = true;
-    } else{
-      warning = false;
-    }
-    Serial.print("Warning: ");
-    Serial.println(warning);
-    Serial.print("Last Warning: ");
-    Serial.println(lastWarning);
-    
-    if (warning == true) {
-        pCharacteristic->setValue("1");
-    } else {
-        pCharacteristic->setValue("0");
+
+    // Build a simple "LHS,RHS" string payload, e.g. "12.34,56.78"
+    char payload[32]; //preallocation
+    snprintf(payload, sizeof(payload), "%.2f,%.2f", distanceLHS, distanceRHS);
+    pCharacteristic->setValue(payload);
+
+    // Only notify when a distance actually changed by more than the threshold,
+    // so we're not spamming BLE notifications every loop with noise-level jitter.
+    bool changed = (fabs(distanceLHS - lastDistanceLHS) > changeThreshold) ||
+                   (fabs(distanceRHS - lastDistanceRHS) > changeThreshold);
+
+    if (changed) {
+      pCharacteristic->notify();
+      lastDistanceLHS = distanceLHS;
+      lastDistanceRHS = distanceRHS;
+      Serial.print("Notified distances: ");
+      Serial.println(payload);
     }
 
-  if (warning != lastWarning) {
-    pCharacteristic->notify();
-    lastWarning = warning;
-    Serial.print("Change in Warning: ");
-    Serial.println(warning);
-    
-  }
-  delay(2000);
+    delay(200); // shortened from 2000ms so Python gets more responsive updates; tune as needed
   }
 }
