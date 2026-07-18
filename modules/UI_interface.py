@@ -11,7 +11,7 @@ WINDOW_HEIGHT = 300
 # Simulated distance (replace this with your variable)
 distance = [120]  #['left','right','back'] -> Change to three repeats & values later when you have 3 modules
 #To test variations use 30,70,120.
-repeats = 1;
+repeats = 2;
 
 # --- CREATE WINDOW ---
 root = tk.Tk()
@@ -82,10 +82,10 @@ def draw_waves(distance):
         )
 
 # --- UPDATE LOOP ---
+#haven't exactly changed this to work for many modules
 def on_ble_update(LHS, RHS):
     global distance #update distance variable
-    avg = (LHS + RHS) / 2
-    distance = [avg]
+    distance = [LHS, RHS]
     root.after(0, draw_waves, distance) #runs draw_waves on main thread
 
 def start_ble_listener():
@@ -97,10 +97,6 @@ ble_thread = threading.Thread(target=start_ble_listener, daemon=True)
 ble_thread.start()
 
 root.mainloop()
-
-if __name__ == "__main__":
-    run_display()
-
 #if you want to use this in main.py
 #import UI_interface
 #UI_interface.run_display()
