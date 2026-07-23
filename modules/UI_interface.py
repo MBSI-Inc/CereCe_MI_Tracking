@@ -11,7 +11,7 @@ WINDOW_HEIGHT = 300
 # Simulated distance (replace this with your variable)
 distance = [120]  #['left','right','back'] -> Change to three repeats & values later when you have 3 modules
 #To test variations use 30,70,120.
-repeats = 2;
+repeats = 3;
 
 # --- CREATE WINDOW ---
 root = tk.Tk()
@@ -32,9 +32,9 @@ canvas.create_rectangle(car_x1, car_y1, car_x2, car_y2, fill="black")
 def get_color(distance): #Returns a matrix of colours based on the distances
     colours = []
     for lengths in range(repeats):
-        if  distance[lengths]> 100:
+        if  distance[lengths]> 70:
             colours.append("green") 
-        elif distance[lengths] > 50:
+        elif distance[lengths] > 40:
             colours.append("yellow")
         else:
             colours.append("red")
@@ -43,9 +43,9 @@ def get_color(distance): #Returns a matrix of colours based on the distances
 def get_wave_number(distance): #Return a matrix of wave number
     wave_number = []
     for lengths in range(repeats):
-        if distance[lengths] > 100:
+        if distance[lengths] > 70:
             wave_number.append(3)
-        elif distance[lengths] > 50:
+        elif distance[lengths] > 40:
             wave_number.append(2)
         else:
             wave_number.append(1)
@@ -85,7 +85,7 @@ def draw_waves(distance):
 #haven't exactly changed this to work for many modules
 def on_ble_update(LHS, RHS):
     global distance #update distance variable
-    distance = [LHS, RHS]
+    distance = [LHS,0, RHS]
     root.after(0, draw_waves, distance) #runs draw_waves on main thread
 
 def start_ble_listener():
