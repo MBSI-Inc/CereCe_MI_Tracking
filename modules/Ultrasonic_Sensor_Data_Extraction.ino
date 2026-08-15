@@ -1,11 +1,11 @@
-#include <Arduino.h>
-#include <BLEDevice.h>
+#include <Arduino.h> // embeds serial.print etc
+#include <BLEDevice.h> // arduinocode-arc32 libary searched for this bluetooth low energy device
 #include <BLEUtils.h>
 #include <BLEServer.h>
 
 
-const int trigPinLHS = D0; //define pin that trig is connected to
-const int echoPinLHS = D1; //define pin that echo is connected to 
+const int trigPinLHS = D0; //define pin that trig is connected to (trig sends impulse at like 10 us)
+const int echoPinLHS = D1; //define pin that echo is connected to (echo receives impulse at like 25 ms)
 float durationLHS, distanceLHS; //float variables to time taken for soundwave to travel to object and back & how far away object is
 
 const int trigPinRHS = D3; //define pin that trig is connected to
@@ -22,9 +22,9 @@ const int LED_PIN = D2;
 const int BUTTON_PIN = D5;
 //#define LED_PIN 9
 //#define BUTTON_PIN 10
-byte lastButtonState;
-unsigned long lastTimeButtonStateChanged = 0;
-unsigned long debounceDuration = 200; //millis
+byte lastButtonState; // is this a function to be stored as a byte of info? i guess?
+unsigned long lastTimeButtonStateChanged = 0; // unsigned long is 32 bit data type for large non-neg whole numbers
+unsigned long debounceDuration = 200; //millis, this prevents lag from burst of rapid events
 int ledState = LOW;
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
@@ -33,9 +33,11 @@ int ledState = LOW;
 //Generated UUID with UUID Generator
 #define SERVICE_UUID        "62ca07c9-4ade-44c8-8a00-4195bf215b3d"
 #define CHARACTERISTIC_UUID "a4b5735b-6dd9-4680-ac4b-06b4a209bffa"
-BLECharacteristic *pCharacteristic;
-class MyServerCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) override {
+BLECharacteristic *pCharacteristic; //pointer: stores memory address, but not the data itself
+class MyServerCallbacks: public BLEServerCallbacks { //My is the declaration, BLE is the constructor
+// constructor: function to create objects, but has no return value
+// when device is disconnected, it will try to reconnect itself
+    void onConnect(BLEServer* pServer) override { //adds the turning the light on to the logic
         digitalWrite(LED_Bluetooth, HIGH); // Turn LED ON when Python connects
         Serial.println("Python Connected!");
     }
@@ -43,6 +45,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
         digitalWrite(LED_Bluetooth, LOW);  // Turn LED OFF when Python disconnects
         Serial.println("Python Disconnected. Restarting advertising...");
         pServer->startAdvertising();        // Keep advertising open for reconnections
+        // arrow to to access functions or variables inside a structure, class, or object through a pointer
     }
 };
 void setup() {
