@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cerebruh Gaze Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-deep: #04080f;
+    --bg-base: #0a1018;
+    --bg-card: #0f1923;
+    --bg-card-hover: #131f2b;
+    --border: #1a2736;
+    --border-bright: #243447;
+    --text-primary: #c8d8e8;
+    --text-secondary: #6b8299;
+    --text-muted: #3a4f63;
+    --accent-cyan: #00d4ff;
+    --accent-cyan-dim: rgba(0, 212, 255, 0.12);
+    --accent-green: #00e088;
+    --accent-green-dim: rgba(0, 224, 136, 0.12);
+    --accent-red: #ff4466;
+    --accent-red-dim: rgba(255, 68, 102, 0.12);
+    --accent-yellow: #ffbb33;
+    --accent-yellow-dim: rgba(255, 187, 51, 0.12);
+    --accent-purple: #a855f7;
+    --accent-purple-dim: rgba(168, 85, 247, 0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --glass: rgba(15, 25, 35, 0.7);
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Background gradient ─────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -40%;
+    left: -20%;
+    width: 70%;
+    height: 70%;
+    background: radial-gradient(ellipse, rgba(0, 212, 255, 0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -30%;
+    right: -10%;
+    width: 50%;
+    height: 60%;
+    background: radial-gradient(ellipse, rgba(168, 85, 247, 0.03) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Layout ──────────────────────────────────────────── */
+  .app { position: relative; z-index: 1; padding: 16px 20px; max-width: 1600px; margin: 0 auto; }
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent-cyan-dim), var(--accent-purple-dim));
+    border: 1px solid var(--border-bright);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+  .brand h1 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: var(--accent-cyan);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .brand span {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  .header-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* ── Buttons ─────────────────────────────────────────── */
+  .btn {
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-bright);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { background: var(--bg-card-hover); border-color: var(--text-muted); }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-danger { border-color: var(--accent-red); color: var(--accent-red); background: var(--accent-red-dim); }
+  .btn-danger:hover { background: rgba(255, 68, 102, 0.2); }
+  .btn-warn { border-color: var(--accent-yellow); color: var(--accent-yellow); background: var(--accent-yellow-dim); }
+  .btn-warn:hover { background: rgba(255, 187, 51, 0.2); }
+  .btn-purple { border-color: var(--accent-purple); color: var(--accent-purple); background: var(--accent-purple-dim); }
+  .btn-purple:hover { background: rgba(168, 85, 247, 0.2); }
+  .btn-purple.active { box-shadow: 0 0 12px rgba(168, 85, 247, 0.3); background: rgba(168, 85, 247, 0.25); }
+  .btn-primary { border-color: var(--accent-cyan); color: var(--accent-cyan); background: var(--accent-cyan-dim); }
+  .btn-primary:hover { background: rgba(0, 212, 255, 0.2); }
+  .btn-success { border-color: var(--accent-green); color: var(--accent-green); background: var(--accent-green-dim); }
+  .btn-success:hover { background: rgba(0, 224, 136, 0.2); }
+
+  /* ── Status pills ────────────────────────────────────── */
+  .status-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+
+  .pill {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.8px;
+    font-family: 'JetBrains Mono', monospace;
+    border: 1px solid var(--text-muted);
+    color: var(--text-muted);
+    transition: all 0.3s;
+  }
+  .pill.on-cyan { border-color: var(--accent-cyan); color: var(--accent-cyan); box-shadow: 0 0 8px rgba(0,212,255,0.15); }
+  .pill.on-green { border-color: var(--accent-green); color: var(--accent-green); box-shadow: 0 0 8px rgba(0,224,136,0.15); }
+  .pill.on-yellow { border-color: var(--accent-yellow); color: var(--accent-yellow); box-shadow: 0 0 8px rgba(255,187,51,0.15); }
+  .pill.on-purple { border-color: var(--accent-purple); color: var(--accent-purple); box-shadow: 0 0 8px rgba(168,85,247,0.15); }
+  .pill.on-red { border-color: var(--accent-red); color: var(--accent-red); box-shadow: 0 0 8px rgba(255,68,102,0.15); }
+
+  /* ── View tabs ───────────────────────────────────────── */
+  .view-tabs {
+    display: flex;
+    margin-bottom: 14px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    width: fit-content;
+    border: 1px solid var(--border);
+  }
+  .view-tab {
+    padding: 8px 20px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    border: none;
+    background: var(--bg-deep);
+    color: var(--text-muted);
+    transition: all 0.2s;
+    font-weight: 500;
+  }
+  .view-tab:first-child { border-right: 1px solid var(--border); }
+  .view-tab.active { background: var(--bg-card); color: var(--accent-cyan); }
+
+  /* ── Cards ───────────────────────────────────────────── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    transition: border-color 0.3s;
+  }
+  .card:hover { border-color: var(--border-bright); }
+  .card-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Grid ────────────────────────────────────────────── */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 1fr) 180px;
+    gap: 10px;
+    align-items: start;
+  }
+
+  .left-col, .right-col { display: flex; flex-direction: column; gap: 12px; }
+  .center-col { display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── Camera feed ─────────────────────────────────────── */
+  .feed-container { position: relative; }
+  .feed-container img {
+    width: 100%;
+    border-radius: var(--radius-sm);
+    display: block;
+    object-fit: contain;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    max-height: 70vh;
+  }
+  .feed-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--accent-cyan);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+  }
+  .feed-badge.recording::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-red);
+    display: inline-block;
+    margin-right: 6px;
+    animation: blink-dot 1.2s infinite;
+  }
+  @keyframes blink-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* ── Gauges (canvas) ─────────────────────────────────── */
+  .gauge-wrap { text-align: center; }
+  .gauge-wrap canvas { display: block; margin: 0 auto; }
+  .gauge-value {
+    font-size: 22px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: -10px;
+  }
+  .gauge-value.cyan { color: var(--accent-cyan); }
+  .gauge-value.red { color: var(--accent-red); }
+
+  /* ── Charts (canvas) ─────────────────────────────────── */
+  .chart-canvas {
+    width: 100%;
+    height: 130px;
+    display: block;
+  }
+
+  /* ── Raw metrics ─────────────────────────────────────── */
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .metric-row:last-child { border-bottom: none; }
+  .metric-key { color: var(--text-muted); }
+  .metric-val { color: var(--accent-cyan); font-weight: 600; }
+
+  /* ── Controls ────────────────────────────────────────── */
+  .radio-group { display: flex; flex-direction: column; gap: 8px; }
+  .radio-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    transition: color 0.2s;
+  }
+  .radio-option:hover { color: var(--text-primary); }
+  .radio-option input[type="radio"] { accent-color: var(--accent-cyan); }
+  .radio-option.selected { color: var(--accent-cyan); }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .toggle {
+    width: 36px;
+    height: 20px;
+    border-radius: 10px;
+    background: var(--border);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .toggle.on { background: var(--accent-cyan); }
+  .toggle::after {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: white;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s;
+  }
+  .toggle.on::after { transform: translateX(16px); }
+
+  .slider-group { margin-top: 4px; }
+  .slider-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent-cyan);
+    height: 4px;
+    cursor: pointer;
+  }
+
+  /* ── Calibration overlay ─────────────────────────────── */
+  .cal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 8, 15, 0.97);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    transition: opacity 0.4s;
+  }
+  .cal-overlay.hidden { opacity: 0; pointer-events: none; }
+
+  .cal-title {
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: 6px;
+    color: var(--accent-cyan);
+    text-shadow: 0 0 40px rgba(0, 212, 255, 0.3);
+  }
+  .cal-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-align: center;
+    max-width: 440px;
+    line-height: 1.7;
+  }
+
+  .cal-preview {
+    width: 600px;
+    max-width: 90vw;
+    aspect-ratio: 16/9;
+    border-radius: var(--radius);
+    border: 2px solid var(--border);
+    object-fit: cover;
+    background: var(--bg-base);
+    transition: border-color 0.4s;
+  }
+  .cal-preview.active { border-color: var(--accent-cyan); box-shadow: 0 0 30px rgba(0,212,255,0.1); }
+
+  .cal-steps {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .cal-step-dot {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.5px;
+    border: 1px solid var(--text-muted);
+    color: var(--text-muted);
+    transition: all 0.3s;
+  }
+  .cal-step-dot.done { border-color: var(--accent-green); color: var(--accent-green); }
+  .cal-step-dot.current { border-color: var(--accent-yellow); color: var(--accent-yellow); background: var(--accent-yellow-dim); }
+
+  .cal-progress-bar {
+    width: 400px;
+    max-width: 80vw;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .cal-progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+    transition: width 0.2s;
+    width: 0%;
+  }
+
+  .cal-timer {
+    font-size: 36px;
+    font-weight: 300;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent-cyan);
+    letter-spacing: 2px;
+  }
+
+  .cal-actions { display: flex; gap: 10px; }
+  .cal-msg {
+    font-size: 11px;
+    color: var(--text-muted);
+    min-height: 18px;
+    max-width: 560px;
+    word-break: break-word;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .cal-msg.error { color: var(--accent-red); }
+
+  /* ── Connection indicator ────────────────────────────── */
+  .ws-indicator {
+    position: fixed;
+    bottom: 12px;
+    right: 16px;
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 50;
+  }
+  .ws-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-red);
+    transition: background 0.3s;
+  }
+  .ws-dot.connected { background: var(--accent-green); }
+
+  /* ── Responsive ──────────────────────────────────────── */
+  @media (max-width: 1100px) {
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .left-col { flex-direction: row; flex-wrap: wrap; }
+    .left-col .card { flex: 1; min-width: 160px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ═══ Header ═══ -->
+  <header class="header">
+    <div class="logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="1.5">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/>
+      </svg>
+    </div>
+    <div class="brand">
+      <h1>CEREBRUH</h1>
+      <span>gaze tracking dashboard</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-danger" id="btn-stop" title="Stop tracking">
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect x="2" y="2" width="8" height="8" rx="1" fill="currentColor"/></svg>
+        STOP
+      </button>
+      <button class="btn btn-warn" id="btn-recenter" title="Re-center gaze">
+        <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="6" y1="0" x2="6" y2="3" stroke="currentColor" stroke-width="1.2"/><line x1="6" y1="9" x2="6" y2="12" stroke="currentColor" stroke-width="1.2"/><line x1="0" y1="6" x2="3" y2="6" stroke="currentColor" stroke-width="1.2"/><line x1="9" y1="6" x2="12" y2="6" stroke="currentColor" stroke-width="1.2"/></svg>
+        RE-CENTER
+      </button>
+      <button class="btn btn-purple" id="btn-unity-send" title="Pause or resume gaze control of the wheelchair">
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="3" width="4" height="6" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="7" y="3" width="4" height="6" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/><line x1="5" y1="6" x2="7" y2="6" stroke="currentColor" stroke-width="1.2"/></svg>
+        PAUSE GAZE
+      </button>
+      <button class="btn btn-success" id="btn-unity-start" title="Start Unity game (M)">
+        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="3,1 10,6 3,11" fill="currentColor"/></svg>
+        GAME START
+      </button>
+      <button class="btn btn-warn" id="btn-unity-restart" title="Restart Unity game (R)">
+        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M10 6a4 4 0 11-1.5-3.1" fill="none" stroke="currentColor" stroke-width="1.3"/><polygon points="10,1 10,4.5 7,3" fill="currentColor"/></svg>
+        GAME RESTART
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══ Status bar ═══ -->
+  <div class="status-bar" id="status-bar">
+    <span class="pill" id="pill-face">NO FACE</span>
+    <span class="pill" id="pill-blink">BLINK</span>
+    <span class="pill" id="pill-move">STOPPED</span>
+    <span class="pill" id="pill-unity">OFFLINE</span>
+    <span class="pill" id="pill-cal">NOT CALIBRATED</span>
+    <span class="pill" id="pill-demo" style="display:none">DEMO</span>
+  </div>
+
+  <!-- ═══ View tabs ═══ -->
+  <div class="view-tabs">
+    <button class="view-tab active" id="tab-cam" onclick="setView(false)">CAMERA</button>
+    <button class="view-tab" id="tab-unity" onclick="setView(true)">CAMERA + UNITY</button>
+  </div>
+
+  <!-- ═══ Dashboard grid ═══ -->
+  <div class="dashboard-grid">
+
+    <!-- Left column: gauges + metrics -->
+    <div class="left-col">
+      <div class="card">
+        <div class="card-label">HORIZONTAL</div>
+        <div class="gauge-wrap">
+          <canvas id="gauge-h" width="168" height="100"></canvas>
+          <div class="gauge-value cyan" id="val-h">0</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">SPEED</div>
+        <div class="gauge-wrap">
+          <canvas id="gauge-v" width="168" height="100"></canvas>
+          <div class="gauge-value red" id="val-v">0</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">RAW METRICS</div>
+        <div id="metrics">
+          <div class="metric-row"><span class="metric-key">H-Gaze</span><span class="metric-val" id="m-h">0</span></div>
+          <div class="metric-row"><span class="metric-key">Speed</span><span class="metric-val" id="m-v">0</span></div>
+          <div class="metric-row"><span class="metric-key">Yaw</span><span class="metric-val" id="m-yaw">0.0</span></div>
+          <div class="metric-row"><span class="metric-key">Pitch</span><span class="metric-val" id="m-pitch">0.0</span></div>
+          <div class="metric-row"><span class="metric-key">Roll</span><span class="metric-val" id="m-roll">0.0</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center column: camera + charts -->
+    <div class="center-col">
+      <div class="card" id="camera-feed-card" style="padding: 10px;">
+        <div class="feed-container">
+          <img id="camera-feed" src="" alt="Camera feed">
+          <div class="feed-badge recording" id="feed-badge">LIVE</div>
+        </div>
+      </div>
+
+      <!-- Unity canvas card — hidden until CAMERA + UNITY tab first clicked -->
+      <div class="card" id="unity-card" style="padding: 10px; display: none; position: relative;">
+        <!-- Loading overlay -->
+        <div id="unity-loading" style="display: none; flex-direction: column; align-items: center;
+             justify-content: center; gap: 12px; padding: 40px 20px; min-height: 240px;">
+          <div style="font-size: 11px; font-family: 'JetBrains Mono', monospace;
+                      color: var(--text-secondary); letter-spacing: 1px;"
+               id="unity-load-text">Loading simulator... 0%</div>
+          <div style="width: 100%; height: 4px; border-radius: 2px; background: var(--border); overflow: hidden;">
+            <div id="unity-progress-fill"
+                 style="height: 100%; border-radius: 2px; width: 0%;
+                        background: linear-gradient(90deg, var(--accent-cyan), #0099cc);
+                        transition: width 0.15s ease;"></div>
+          </div>
+        </div>
+        <!-- Error overlay -->
+        <div id="unity-error" style="display: none; flex-direction: column; align-items: center;
+             justify-content: center; gap: 14px; padding: 40px 20px; min-height: 240px;">
+          <div id="unity-error-text"
+               style="font-size: 12px; font-family: 'JetBrains Mono', monospace;
+                      color: var(--accent-red); text-align: center; max-width: 400px;"></div>
+          <button class="btn btn-primary" onclick="retryUnity()">RETRY</button>
+        </div>
+        <!-- Unity canvas (hidden until loaded) -->
+        <canvas id="unity-canvas" width="960" height="600" tabindex="-1"
+                style="display: none; width: 100%; height: auto; aspect-ratio: 16/10;
+                       border-radius: var(--radius-sm); background: var(--bg-deep);
+                       border: 1px solid var(--border);"></canvas>
+        <!-- Fullscreen toggle (shown only when Unity is loaded) -->
+        <button id="btn-fullscreen" onclick="toggleUnityFullscreen()" title="Fullscreen"
+                style="position: absolute; top: 18px; right: 18px;
+                       width: 32px; height: 32px; display: none;
+                       align-items: center; justify-content: center;
+                       background: rgba(15, 25, 35, 0.75);
+                       border: 1px solid var(--border-bright);
+                       border-radius: 6px; cursor: pointer;
+                       color: var(--text-secondary); font-size: 16px;
+                       backdrop-filter: blur(4px); transition: color 0.2s, background 0.2s;">&#x26F6;</button>
+        <!-- Small "show camera" restore button (shown when PiP was dismissed) -->
+        <button id="btn-pip-show" onclick="showUnityPip()" title="Show camera preview"
+                style="position: absolute; bottom: 18px; left: 18px;
+                       width: 32px; height: 32px; display: none;
+                       align-items: center; justify-content: center;
+                       background: rgba(15, 25, 35, 0.75);
+                       border: 1px solid var(--border-bright);
+                       border-radius: 6px; cursor: pointer;
+                       color: var(--text-secondary); font-size: 16px;
+                       backdrop-filter: blur(4px); transition: color 0.2s, background 0.2s;">&#x1F4F7;</button>
+        <!-- Picture-in-Picture camera overlay (shown when Unity is loaded + not user-dismissed) -->
+        <div id="unity-pip" style="position: absolute; bottom: 18px; left: 18px;
+                       width: 200px; height: 140px; display: none;
+                       border-radius: 8px; overflow: hidden;
+                       border: 1px solid var(--border-bright);
+                       background: var(--bg-deep);
+                       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);">
+          <img id="unity-pip-img" src="" alt="Camera feed"
+               style="width: 100%; height: 100%; object-fit: cover; display: block;">
+          <button id="btn-pip-close" onclick="dismissUnityPip()" title="Hide camera preview"
+                  style="position: absolute; top: 4px; right: 4px;
+                         width: 22px; height: 22px; padding: 0;
+                         display: flex; align-items: center; justify-content: center;
+                         background: rgba(15, 25, 35, 0.85);
+                         border: 1px solid var(--border-bright);
+                         border-radius: 4px; cursor: pointer;
+                         color: var(--text-secondary); font-size: 12px; line-height: 1;
+                         backdrop-filter: blur(4px);">&#x2715;</button>
+          <div style="position: absolute; top: 6px; left: 8px;
+                      font-size: 9px; font-family: 'JetBrains Mono', monospace;
+                      color: var(--accent-cyan); letter-spacing: 1px;
+                      text-shadow: 0 1px 2px rgba(0,0,0,0.8);">CAMERA</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">GAZE HISTORY</div>
+        <canvas class="chart-canvas" id="chart-gaze"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-label">HEAD ROTATION &middot; Yaw &middot; Pitch &middot; Roll</div>
+        <canvas class="chart-canvas" id="chart-head"></canvas>
+      </div>
+    </div>
+
+    <!-- Right column: controls -->
+    <div class="right-col">
+      <div class="card">
+        <div class="card-label">CONTROLLER MODE</div>
+        <div class="radio-group" id="ctrl-mode">
+          <label class="radio-option selected">
+            <input type="radio" name="ctrl" value="0" checked> Gaze
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="ctrl" value="1"> Head Pose
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="ctrl" value="2"> Drag
+          </label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">CRUISE CONTROL</div>
+        <div class="toggle-row">
+          <div class="toggle" id="cruise-toggle" onclick="toggleCruise()"></div>
+          <span id="cruise-label">Disabled</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">THRESHOLDS</div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Left</span><span id="sl-left-val">0.35</span></div>
+          <input type="range" id="sl-left" min="0.10" max="0.49" step="0.01" value="0.35">
+        </div>
+        <div class="slider-group" style="margin-top: 12px;">
+          <div class="slider-label"><span>Right</span><span id="sl-right-val">0.65</span></div>
+          <input type="range" id="sl-right" min="0.51" max="0.90" step="0.01" value="0.65">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Calibration Overlay ═══ -->
+<div class="cal-overlay" id="cal-overlay">
+  <div class="cal-title">GAZE CALIBRATION</div>
+  <div class="cal-subtitle" id="cal-text">Click START to begin automatic calibration (~22 seconds)</div>
+  <img class="cal-preview" id="cal-preview" src="" alt="Calibration preview">
+  <div class="cal-timer" id="cal-timer" style="display:none">0.0s</div>
+  <div class="cal-progress-bar" id="cal-progress-bar" style="display:none">
+    <div class="cal-progress-fill" id="cal-progress-fill"></div>
+  </div>
+  <div class="cal-steps" id="cal-steps">
+    <span class="cal-step-dot" id="dot-1">CENTER</span>
+    <span class="cal-step-dot" id="dot-2">LEFT</span>
+    <span class="cal-step-dot" id="dot-3">RIGHT</span>
+    <span class="cal-step-dot" id="dot-4">L-BLINK</span>
+    <span class="cal-step-dot" id="dot-5">R-BLINK</span>
+  </div>
+  <div class="cal-actions">
+    <button class="btn btn-primary" id="btn-cal-start" onclick="calStart()">START</button>
+    <button class="btn btn-primary" id="btn-cal-retry" onclick="calRetry()" style="display:none">RETRY</button>
+    <button class="btn btn-danger" id="btn-cal-reset" onclick="calReset()" style="display:none">RESTART</button>
+  </div>
+  <div class="cal-msg" id="cal-msg"></div>
+</div>
+
+<!-- ═══ WebSocket indicator ═══ -->
+<div class="ws-indicator">
+  <div class="ws-dot" id="ws-dot"></div>
+  <span id="ws-label">disconnected</span>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────
+let wsGaze = null, wsCamera = null;
+let calStep = 0, calDone = false, isRunning = false;
+let unitySend = false;
+let gazeData = {};
+let history = [];
+const dpr = window.devicePixelRatio || 1;
+
+// ── Unity WebGL embed state ──────────────────────────────────────────────
+let unityInstance = null;
+let unityLoaded = false;
+let unityLoading = false;
+let gazeActive = false;   // Gaze bridge activates once calibration done AND Unity loaded
+let gazePaused = false;   // Toggled by SEND UNITY button (repurposed as PAUSE/RESUME GAZE)
+
+// ── DOM refs ──────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+// ── API calls ─────────────────────────────────────────────────────────────
+async function api(path, body) {
+  const opts = { method: 'POST' };
+  if (body) {
+    opts.headers = { 'Content-Type': 'application/json' };
+    opts.body = JSON.stringify(body);
+  }
+  const r = await fetch('/api/' + path, opts);
+  return r.json();
+}
+
+// ── Calibration ───────────────────────────────────────────────────────────
+let calActive = false;
+let calPollTimer = null;
+
+async function calStart() {
+  $('btn-cal-retry').style.display = 'none';
+  $('cal-msg').textContent = 'Starting calibration...';
+  $('cal-msg').className = 'cal-msg';
+  const r = await api('calibrate/start');
+  if (r.ok) {
+    calStep = 1;
+    calActive = true;
+    connectCamera();
+    updateCalUI();
+    // Start polling gaze WebSocket for cal_progress
+    connectGaze();
+    // Preload Unity silently in background so game is ready when calibration completes
+    initUnity();
+  } else {
+    $('cal-msg').className = 'cal-msg error';
+    $('cal-msg').textContent = 'Camera error - check connection and retry';
+  }
+}
+
+async function calReset() {
+  $('btn-cal-retry').style.display = 'none';
+  await api('calibrate/reset');
+  calStep = 0;
+  calActive = false;
+  updateCalUI();
+  $('cal-msg').textContent = 'Restarted - click START to begin again';
+}
+
+async function calRetry() {
+  // Reset state, hide error UI, then start fresh
+  $('btn-cal-retry').style.display = 'none';
+  $('cal-msg').textContent = 'Retrying camera...';
+  $('cal-msg').className = 'cal-msg';
+  await calReset();
+  await calStart();
+}
+
+function updateCalUI() {
+  const active = calActive && calStep >= 1;
+  $('btn-cal-start').style.display = (!calActive && calStep === 0) ? '' : 'none';
+  $('btn-cal-retry').style.display = 'none';  // only shown on error
+  $('btn-cal-reset').style.display = active ? '' : 'none';
+  $('cal-preview').classList.toggle('active', active);
+  $('cal-timer').style.display = active ? '' : 'none';
+  $('cal-progress-bar').style.display = active ? '' : 'none';
+
+  if (calStep === 0) {
+    $('cal-text').textContent = 'Click START to begin automatic calibration (~22 seconds)';
+  }
+
+  // Reset dots
+  for (let i = 1; i <= 5; i++) {
+    const dot = $('dot-' + i);
+    dot.className = 'cal-step-dot';
+  }
+}
+
+// Step name → dot index mapping
+const stepToDot = {
+  'center': 1, 'left': 2, 'right': 3,
+  'prep_left_blink': 4, 'left_blink': 4,
+  'prep_right_blink': 5, 'right_blink': 5,
+};
+
+const stepLabels = {
+  'get_ready': 'Get ready — position yourself in front of the camera',
+  'center': 'Look at the green dot (CENTER)',
+  'left': 'Look at the green dot (LEFT)',
+  'right': 'Look at the green dot (RIGHT)',
+  'prep_left_blink': 'Get ready — close your LEFT eye',
+  'left_blink': 'Keep LEFT eye closed, RIGHT eye open',
+  'prep_right_blink': 'Get ready — close your RIGHT eye',
+  'right_blink': 'Keep RIGHT eye closed, LEFT eye open',
+  'done': 'Calibration complete!',
+};
+
+function updateCalProgress(cp) {
+  if (!cp) return;
+
+  // Update text
+  $('cal-text').textContent = stepLabels[cp.step_name] || '';
+
+  // Update timer
+  const tl = Math.max(0, cp.time_left || 0);
+  $('cal-timer').textContent = tl.toFixed(1) + 's';
+
+  // Update progress bar
+  const pct = cp.total_duration > 0 ? Math.min(100, (cp.total_elapsed / cp.total_duration) * 100) : 0;
+  $('cal-progress-fill').style.width = pct + '%';
+
+  // Update step dots
+  const currentDot = stepToDot[cp.step_name] || 0;
+  for (let i = 1; i <= 5; i++) {
+    const dot = $('dot-' + i);
+    dot.className = 'cal-step-dot';
+    if (i < currentDot) dot.classList.add('done');
+    else if (i === currentDot) dot.classList.add('current');
+  }
+
+  // Handle completion — guard against re-firing on every subsequent WebSocket
+  // message that still has cp.done=true (was yanking user back to Unity tab
+  // every time they manually switched to CAMERA).
+  if (cp.done && !calDone) {
+    calStep = 4;
+    calDone = true;
+    isRunning = true;
+    calActive = false;
+    maybeActivateGazeBridge();
+    $('cal-text').textContent = 'Calibration complete!';
+    $('cal-timer').style.display = 'none';
+    $('cal-progress-fill').style.width = '100%';
+    for (let i = 1; i <= 5; i++) $('dot-' + i).className = 'cal-step-dot done';
+    // Switch to Unity tab BEFORE fading overlay — game becomes visible beneath as overlay fades out
+    setView(true);
+    setTimeout(() => {
+      $('cal-overlay').classList.add('hidden');
+    }, 400);
+  }
+
+  // Handle error
+  if (cp.error) {
+    $('cal-msg').className = 'cal-msg error';
+    $('cal-msg').textContent = cp.error;
+    calActive = false;
+    calStep = 0;
+    updateCalUI();
+    // Show RETRY button; hint already embedded in cp.error text from backend
+    $('btn-cal-retry').style.display = '';
+    $('btn-cal-start').style.display = 'none';
+  }
+}
+
+// ── Dashboard actions ─────────────────────────────────────────────────────
+$('btn-stop').onclick = async () => {
+  await api('stop');
+  calStep = 0; calDone = false; isRunning = false; unitySend = false; calActive = false;
+  gazeActive = false; gazePaused = false;
+  history = [];
+  gazeData = {};
+  updateCalUI();
+  updatePills();
+  $('cal-overlay').classList.remove('hidden');
+  $('cal-msg').textContent = '';
+  $('cal-msg').className = 'cal-msg';
+  $('btn-unity-send').classList.remove('active');
+  $('btn-unity-send').innerHTML = svgGamepad + ' PAUSE GAZE';
+};
+
+$('btn-recenter').onclick = () => api('recenter');
+
+const svgGamepad = $('btn-unity-send').querySelector('svg').outerHTML;
+$('btn-unity-send').onclick = () => {
+  if (!gazeActive) return;
+  gazePaused = !gazePaused;
+  if (gazePaused) {
+    if (unityLoaded && unityInstance) {
+      unityInstance.SendMessage("GameManager", "ReceiveGazeData", "0,0");
+    }
+    setPill('pill-unity', true, 'PAUSED', 'on-yellow');
+    $('btn-unity-send').innerHTML = svgGamepad + ' RESUME GAZE';
+  } else {
+    setPill('pill-unity', true, 'DRIVING', 'on-green');
+    $('btn-unity-send').innerHTML = svgGamepad + ' PAUSE GAZE';
+  }
+};
+
+// ── Unity game controls ──────────────────────────────────────────────────
+$('btn-unity-start').onclick = () => {
+  if (unityLoaded && unityInstance) {
+    unityInstance.SendMessage("Player", "ReceiveMoveCommand", "move");
+  }
+};
+$('btn-unity-restart').onclick = () => {
+  if (unityLoaded && unityInstance) {
+    unityInstance.SendMessage("Player", "ReceiveMoveCommand", "restart");
+  }
+};
+
+// ── Unity WebGL embed ─────────────────────────────────────────────────────
+function setUnityState(state) {
+  // state: 'hidden' | 'loading' | 'loaded' | 'error'
+  $('unity-card').style.display    = state === 'hidden' ? 'none' : '';
+  $('unity-loading').style.display = state === 'loading' ? 'flex' : 'none';
+  $('unity-canvas').style.display  = state === 'loaded' ? 'block' : 'none';
+  $('unity-error').style.display   = state === 'error' ? 'flex' : 'none';
+  $('btn-fullscreen').style.display = state === 'loaded' ? 'flex' : 'none';
+  $('camera-feed-card').style.display = state === 'hidden' ? '' : 'none';
+  // PiP visible only when Unity canvas is loaded AND user hasn't dismissed it.
+  // When dismissed, show a small restore button in its place instead.
+  const pipDismissed = localStorage.getItem('cerebruh.pip.dismissed') === '1';
+  const showPip     = state === 'loaded' && !pipDismissed;
+  const showRestore = state === 'loaded' &&  pipDismissed;
+  $('unity-pip').style.display      = showPip ? 'block' : 'none';
+  $('btn-pip-show').style.display   = showRestore ? 'flex' : 'none';
+}
+
+// Hide the PiP and remember the choice across sessions.
+function dismissUnityPip() {
+  localStorage.setItem('cerebruh.pip.dismissed', '1');
+  $('unity-pip').style.display = 'none';
+  $('btn-pip-show').style.display = 'flex';
+}
+
+// Restore the PiP (clears the persisted dismissal).
+function showUnityPip() {
+  localStorage.removeItem('cerebruh.pip.dismissed');
+  $('btn-pip-show').style.display = 'none';
+  $('unity-pip').style.display = 'block';
+}
+
+function updateUnityProgress(progress) {
+  const pct = Math.round(progress * 100);
+  $('unity-progress-fill').style.width = pct + '%';
+  $('unity-load-text').textContent = 'Loading simulator... ' + pct + '%';
+}
+
+function showUnityLoading() {
+  setUnityState('loading');
+  updateUnityProgress(0);
+  setPill('pill-unity', false, 'LOADING', 'on-yellow');
+}
+
+function showUnityCanvas() {
+  setUnityState('loaded');
+  setPill('pill-unity', true, 'UNITY', 'on-purple');
+}
+
+function showUnityError(msg) {
+  $('unity-error-text').textContent = msg || 'Failed to load simulator';
+  setUnityState('error');
+  setPill('pill-unity', false, 'UNITY ERR', 'on-red');
+  unityLoading = false;
+}
+
+function toggleUnityFullscreen() {
+  if (unityInstance && typeof unityInstance.SetFullscreen === 'function') {
+    unityInstance.SetFullscreen(1);
+  }
+}
+
+function setupCanvasFocus() {
+  const canvas = $('unity-canvas');
+  if (!canvas || canvas._focusWired) return;
+  canvas._focusWired = true;  // idempotency guard
+
+  canvas.addEventListener('focus', () => {
+    canvas.style.outline = '2px solid var(--accent-cyan)';
+    canvas.style.outlineOffset = '2px';
+  });
+  canvas.addEventListener('blur', () => {
+    canvas.style.outline = '';
+    canvas.style.outlineOffset = '';
+  });
+
+  // Clicking outside the canvas blurs it so dashboard controls regain keyboard focus
+  document.addEventListener('mousedown', (e) => {
+    if (!canvas.contains(e.target)) {
+      canvas.blur();
+    }
+  });
+}
+
+function maybeActivateGazeBridge() {
+  if (calDone && unityLoaded && unityInstance) {
+    gazeActive = true;
+    gazePaused = false;
+    setPill('pill-unity', true, 'DRIVING', 'on-green');
+  }
+}
+
+function initUnity() {
+  if (unityLoaded || unityLoading) return;
+  unityLoading = true;
+  showUnityLoading();
+
+  const buildUrl = '/static/unity/Build';
+  const config = {
+    dataUrl:            buildUrl + '/WebGL_Build.data',
+    frameworkUrl:       buildUrl + '/WebGL_Build.framework.js',
+    codeUrl:            buildUrl + '/WebGL_Build.wasm',
+    streamingAssetsUrl: '/static/unity/StreamingAssets',
+    companyName:        'MBSI',
+    productName:        'GazeWheelchairSimulator',
+    productVersion:     '0.1',
+  };
+
+  const script = document.createElement('script');
+  script.src = buildUrl + '/WebGL_Build.loader.js';
+  script.onload = () => {
+    createUnityInstance($('unity-canvas'), config, (progress) => {
+      updateUnityProgress(progress);
+    }).then((instance) => {
+      unityInstance = instance;
+      unityLoaded = true;
+      unityLoading = false;
+      showUnityCanvas();
+      maybeActivateGazeBridge();
+    }).catch((msg) => {
+      unityLoading = false;
+      showUnityError(typeof msg === 'string' ? msg : 'Failed to initialize simulator');
+    });
+  };
+  script.onerror = () => {
+    unityLoading = false;
+    showUnityError('Failed to download simulator loader');
+  };
+  document.body.appendChild(script);
+}
+
+function retryUnity() {
+  unityLoaded = false;
+  unityLoading = false;
+  const old = document.querySelector('script[src*="WebGL_Build.loader"]');
+  if (old) old.remove();
+  initUnity();
+}
+
+// ── View tabs ─────────────────────────────────────────────────────────────
+function setView(unity) {
+  $('tab-cam').classList.toggle('active', !unity);
+  $('tab-unity').classList.toggle('active', unity);
+  api('config', { unity_feed: unity });
+  if (unity) {
+    if (!unityLoaded && !unityLoading) {
+      initUnity();
+    } else if (unityLoaded) {
+      setUnityState('loaded');
+    }
+    // if unityLoading: already in progress, state is already 'loading'
+  } else {
+    setUnityState('hidden');
+  }
+}
+
+// ── Controller mode ───────────────────────────────────────────────────────
+document.querySelectorAll('#ctrl-mode input').forEach(r => {
+  r.addEventListener('change', () => {
+    document.querySelectorAll('#ctrl-mode .radio-option').forEach(o => o.classList.remove('selected'));
+    r.closest('.radio-option').classList.add('selected');
+    api('config', { controller_mode: parseInt(r.value) });
+  });
+});
+
+// ── Cruise control ────────────────────────────────────────────────────────
+let cruiseOn = false;
+function toggleCruise() {
+  cruiseOn = !cruiseOn;
+  $('cruise-toggle').classList.toggle('on', cruiseOn);
+  $('cruise-label').textContent = cruiseOn ? 'Enabled' : 'Disabled';
+  api('config', { cruise_control: cruiseOn });
+}
+
+// ── Threshold sliders ─────────────────────────────────────────────────────
+let sliderTimeout = null;
+function onSlider() {
+  $('sl-left-val').textContent = parseFloat($('sl-left').value).toFixed(2);
+  $('sl-right-val').textContent = parseFloat($('sl-right').value).toFixed(2);
+  clearTimeout(sliderTimeout);
+  sliderTimeout = setTimeout(() => {
+    api('config', {
+      left_threshold: parseFloat($('sl-left').value),
+      right_threshold: parseFloat($('sl-right').value),
+    });
+  }, 200);
+}
+$('sl-left').addEventListener('input', onSlider);
+$('sl-right').addEventListener('input', onSlider);
+
+// ── WebSocket: camera frames ──────────────────────────────────────────────
+function connectCamera() {
+  if (wsCamera) { try { wsCamera.close(); } catch(e){} }
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  wsCamera = new WebSocket(`${proto}//${location.host}/ws/camera`);
+  wsCamera.onmessage = e => {
+    const dataUrl = 'data:image/jpeg;base64,' + e.data;
+    const target = calDone ? $('camera-feed') : $('cal-preview');
+    target.src = dataUrl;
+    // Also mirror the feed into the PiP overlay when Unity view is active
+    // so the user can see face tracking while playing. Only update if the
+    // PiP is actually visible to avoid wasted assignments.
+    const pip = $('unity-pip');
+    if (pip && pip.style.display !== 'none') {
+      $('unity-pip-img').src = dataUrl;
+    }
+  };
+  wsCamera.onclose = () => setTimeout(connectCamera, 2000);
+}
+
+// ── WebSocket: gaze data ──────────────────────────────────────────────────
+function connectGaze() {
+  if (wsGaze) { try { wsGaze.close(); } catch(e){} }
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  wsGaze = new WebSocket(`${proto}//${location.host}/ws/gaze`);
+  wsGaze.onopen = () => {
+    $('ws-dot').classList.add('connected');
+    $('ws-label').textContent = 'streaming';
+  };
+  wsGaze.onclose = () => {
+    $('ws-dot').classList.remove('connected');
+    $('ws-label').textContent = 'disconnected';
+    if (isRunning) setTimeout(connectGaze, 2000);
+  };
+  wsGaze.onmessage = e => {
+    const d = JSON.parse(e.data);
+    gazeData = d.gaze || {};
+    history = d.history || [];
+    const st = d.state || {};
+
+    // ── Gaze → Unity bridge (BRIDGE-01, BRIDGE-03) ──
+    // Debug logs were helpful while diagnosing the "Player vs GameManager"
+    // SendMessage routing issue. Now that the bridge is confirmed firing
+    // correctly, they're gated behind a window flag to keep the console
+    // (and browser perf) clean. To turn logging back on, set
+    //   window._gazeDebug = true
+    // in DevTools Console.
+    if (unityLoaded && unityInstance && gazeActive && !gazePaused) {
+      const face = gazeData.face_detected;
+      const move = gazeData.move_enabled;
+      const speed = (face && move) ? (gazeData.combined_gaze_vertical || 0) : 0;
+      const dir   = (face && move) ? (gazeData.combined_gaze_horizontal || 0) : 0;
+      unityInstance.SendMessage("GameManager", "ReceiveGazeData", speed + "," + dir);
+      if (window._gazeDebug) {
+        if (!window._gazeBridgeLogCount) window._gazeBridgeLogCount = 0;
+        if (++window._gazeBridgeLogCount % 10 === 0) {
+          console.log('[gaze→unity FIRED]', { speed, dir, face, move });
+        }
+      }
+    } else if (window._gazeDebug) {
+      if (!window._gazeBridgeSkipCount) window._gazeBridgeSkipCount = 0;
+      if (++window._gazeBridgeSkipCount % 30 === 0) {
+        console.warn('[gaze→unity SKIPPED]', {
+          unityLoaded,
+          hasInstance: !!unityInstance,
+          gazeActive,
+          gazePaused,
+        });
+      }
+    }
+
+    // Handle calibration progress
+    if (d.cal_progress) {
+      updateCalProgress(d.cal_progress);
+    }
+
+    if (calDone) {
+      updatePills(st);
+      updateMetrics();
+      drawGaugeH();
+      drawGaugeV();
+      drawGazeChart();
+      drawHeadChart();
+    }
+
+    // Update demo pill
+    if (st.demo_mode) {
+      $('pill-demo').style.display = '';
+      $('pill-demo').className = 'pill on-yellow';
+      $('pill-demo').textContent = 'DEMO MODE';
+    }
+  };
+}
+
+// ── Status pills ──────────────────────────────────────────────────────────
+function updatePills(st) {
+  const face = gazeData.face_detected;
+  const blink = gazeData.blinked;
+  const move = gazeData.move_enabled;
+  const conn = st?.unity_conn;
+  const cal = st?.cal_done ?? calDone;
+
+  setPill('pill-face', face, face ? 'FACE' : 'NO FACE', 'on-green');
+  setPill('pill-blink', blink, blink ? 'BLINK' : 'BLINK', 'on-yellow');
+  setPill('pill-move', move, move ? 'MOVING' : 'STOPPED', move ? 'on-cyan' : 'on-red');
+  // Only update pill-unity from WebSocket if Unity WebGL is not managing it
+  if (!unityLoaded && !unityLoading) {
+    setPill('pill-unity', conn, conn ? 'UNITY' : 'OFFLINE', 'on-purple');
+  }
+  setPill('pill-cal', cal, cal ? 'CALIBRATED' : 'NOT CALIBRATED', 'on-green');
+}
+
+function setPill(id, on, text, onClass) {
+  const el = $(id);
+  el.textContent = text;
+  el.className = 'pill' + (on ? ' ' + onClass : '');
+}
+
+// ── Metrics ───────────────────────────────────────────────────────────────
+function updateMetrics() {
+  const h = gazeData.combined_gaze_horizontal || 0;
+  const v = gazeData.combined_gaze_vertical || 0;
+  $('m-h').textContent = (h >= 0 ? '+' : '') + h;
+  $('m-v').textContent = (v >= 0 ? '+' : '') + v;
+  $('m-yaw').textContent = (gazeData._yaw || 0).toFixed(1) + '\u00b0';
+  $('m-pitch').textContent = (gazeData._pitch || 0).toFixed(1) + '\u00b0';
+  $('m-roll').textContent = (gazeData._roll || 0).toFixed(1) + '\u00b0';
+}
+
+// ── Gauge drawing ─────────────────────────────────────────────────────────
+function drawArcGauge(canvasId, value, min, max, color, bgColor) {
+  const canvas = $(canvasId);
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const cx = w / 2, cy = h - 8;
+  const radius = Math.min(w, h) * 0.65;
+  const startAngle = Math.PI;
+  const endAngle = 2 * Math.PI;
+
+  // Background arc
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, startAngle, endAngle);
+  ctx.strokeStyle = bgColor || '#141e2a';
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Value arc
+  const pct = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  const valAngle = startAngle + pct * Math.PI;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, startAngle, valAngle);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Glow
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, startAngle, valAngle);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 12;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Tick marks
+  ctx.strokeStyle = '#1a2736';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 10; i++) {
+    const a = startAngle + (i / 10) * Math.PI;
+    const x1 = cx + Math.cos(a) * (radius - 14);
+    const y1 = cy + Math.sin(a) * (radius - 14);
+    const x2 = cx + Math.cos(a) * (radius - 4);
+    const y2 = cy + Math.sin(a) * (radius - 4);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // Needle dot
+  const dotX = cx + Math.cos(valAngle) * radius;
+  const dotY = cy + Math.sin(valAngle) * radius;
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, 4, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, 6, 0, Math.PI * 2);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.3;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function drawGaugeH() {
+  const v = gazeData.combined_gaze_horizontal || 0;
+  drawArcGauge('gauge-h', v, -100, 100, '#00d4ff', '#0d1a24');
+  $('val-h').textContent = (v >= 0 ? '+' : '') + v;
+}
+
+function drawGaugeV() {
+  const v = gazeData.combined_gaze_vertical || 0;
+  drawArcGauge('gauge-v', v, 0, 100, '#ff4466', '#1a0d12');
+  $('val-v').textContent = v;
+}
+
+// ── Chart drawing ─────────────────────────────────────────────────────────
+function drawLineChart(canvasId, datasets, yRange) {
+  const canvas = $(canvasId);
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const w = rect.width, h = rect.height;
+
+  // Background
+  ctx.fillStyle = '#0f1923';
+  ctx.fillRect(0, 0, w, h);
+
+  const pad = { t: 8, b: 20, l: 36, r: 8 };
+  const cw = w - pad.l - pad.r;
+  const ch = h - pad.t - pad.b;
+
+  // Grid
+  ctx.strokeStyle = '#141e2a';
+  ctx.lineWidth = 0.5;
+  const ySteps = 5;
+  for (let i = 0; i <= ySteps; i++) {
+    const y = pad.t + (i / ySteps) * ch;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, y);
+    ctx.lineTo(w - pad.r, y);
+    ctx.stroke();
+  }
+
+  // Zero line
+  if (yRange[0] < 0 && yRange[1] > 0) {
+    const zeroY = pad.t + ch * (1 - (0 - yRange[0]) / (yRange[1] - yRange[0]));
+    ctx.strokeStyle = '#1e2a38';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, zeroY);
+    ctx.lineTo(w - pad.r, zeroY);
+    ctx.stroke();
+  }
+
+  // Y axis labels
+  ctx.fillStyle = '#3a4f63';
+  ctx.font = '9px JetBrains Mono, monospace';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= ySteps; i++) {
+    const val = yRange[1] - (i / ySteps) * (yRange[1] - yRange[0]);
+    const y = pad.t + (i / ySteps) * ch;
+    ctx.fillText(Math.round(val), pad.l - 4, y + 3);
+  }
+
+  // Lines
+  datasets.forEach(({ data, color, fill }) => {
+    if (!data || data.length < 2) return;
+    const n = data.length;
+
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const x = pad.l + (i / (n - 1)) * cw;
+      const y = pad.t + ch * (1 - (data[i] - yRange[0]) / (yRange[1] - yRange[0]));
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Fill
+    if (fill) {
+      const zeroY = pad.t + ch * (1 - (0 - yRange[0]) / (yRange[1] - yRange[0]));
+      ctx.lineTo(pad.l + cw, zeroY);
+      ctx.lineTo(pad.l, zeroY);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+  });
+}
+
+function drawGazeChart() {
+  const hData = history.map(d => d.combined_gaze_horizontal || 0);
+  const vData = history.map(d => d.combined_gaze_vertical || 0);
+  drawLineChart('chart-gaze', [
+    { data: hData, color: '#00d4ff', fill: 'rgba(0,212,255,0.06)' },
+    { data: vData, color: '#ff4466', fill: 'rgba(255,68,102,0.05)' },
+  ], [-110, 110]);
+}
+
+function drawHeadChart() {
+  const yaw = history.map(d => d._yaw || 0);
+  const pitch = history.map(d => d._pitch || 0);
+  const roll = history.map(d => d._roll || 0);
+  drawLineChart('chart-head', [
+    { data: yaw, color: '#a855f7' },
+    { data: pitch, color: '#00e088' },
+    { data: roll, color: '#ffbb33' },
+  ], [-45, 45]);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+async function init() {
+  setupCanvasFocus();
+  const r = await fetch('/api/state').then(r => r.json());
+  if (r.cal_done) {
+    calStep = 4;
+    calDone = true;
+    isRunning = true;
+    $('cal-overlay').classList.add('hidden');
+    connectCamera();
+    connectGaze();
+  }
+  if (r.demo_mode) {
+    $('pill-demo').style.display = '';
+    $('pill-demo').className = 'pill on-yellow';
+    $('pill-demo').textContent = 'DEMO MODE';
+  }
+  updateCalUI();
+
+  // Initial empty charts
+  drawGaugeH();
+  drawGaugeV();
+  drawGazeChart();
+  drawHeadChart();
+}
+init();
+</script>
+</body>
+</html>
