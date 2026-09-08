@@ -13,6 +13,9 @@ pip install -r requirements.txt
 python main_test.py
 ```
 
+The browser-based gaze dashboard and bundled Unity test game are documented in
+[`Gaze_Dashboard_Import/README.md`](Gaze_Dashboard_Import/README.md).
+
 
 **1. Sampling Rate Mismatch**
 - **Problem:** The EEG hardware streams data (250Hz) faster than the inference or motor control loops can process, leading to potential lag or backlog.

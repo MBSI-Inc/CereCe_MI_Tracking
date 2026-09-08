@@ -11,3 +11,8 @@ pygame>=2.6.0
 # Cerebruh_Gaze_Tracking dependencies
 opencv-python>=4.5.0
 mediapipe==0.10.9
+
+# Gaze dashboard service
+fastapi>=0.100.0
+uvicorn>=0.23.0
+websockets>=10.4,<14
