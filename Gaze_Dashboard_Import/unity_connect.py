@@ -1,5 +1,4 @@
 import socket
-import PIL.Image as Image
 import numpy as np
 import cv2
 

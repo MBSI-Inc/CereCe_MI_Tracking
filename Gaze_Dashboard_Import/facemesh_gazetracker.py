@@ -93,27 +93,31 @@ import time
 import cv2
 import numpy as np
 import pandas as pd
-import sys
 import mediapipe as mp
 import queue
 import json
+import sys
 from threading import Thread
 from timeit import default_timer as timer
 
-sys.path.append('./src')
-from util import Util
+if __package__:
+    from .util import Util
+    from .unity_connect import (
+        fetchFrameUnity as fetch_frame_unity,
+        is_unity_connected,
+        sendToUnity_MoveCommand,
+        sendToUnity_targetSpeedAndDirection as send_data_to_unity,
+    )
+else:
+    from util import Util
+    from unity_connect import (
+        fetchFrameUnity as fetch_frame_unity,
+        is_unity_connected,
+        sendToUnity_MoveCommand,
+        sendToUnity_targetSpeedAndDirection as send_data_to_unity,
+    )
 
 # from src.headPoseProcessor import getHeadRotation as get_head_rotation
-try:
-    from networking.unity_connect import sendToUnity_targetSpeedAndDirection as send_data_to_unity, \
-        fetchFrameUnity as fetch_frame_unity, \
-        sendToUnity_MoveCommand as sent_unity_move_command, \
-        sendValueToUnity as send_value_to_unity, \
-        is_unity_connected as is_unity_connected, \
-        sendToUnity_MoveCommand as sendToUnity_MoveCommand
-except ImportError as e:
-    print(f"Failed to import unity packages: {e}")
-
 class GazeTracker:
     # Class constants
     DEFAULT_SPEED = 20
@@ -198,9 +202,15 @@ class GazeTracker:
 
     def deinit(self):
         cv2.destroyAllWindows()
-        self.cam.release()
+        if self.cam is not None:
+            self.cam.release()
+            self.cam = None
         if self.cam_scene is not None:
             self.cam_scene.release()
+            self.cam_scene = None
+        if self.face_mesh is not None:
+            self.face_mesh.close()
+            self.face_mesh = None
         return
 
     def set_debug(self, debug_flag):
@@ -663,7 +673,7 @@ class GazeTracker:
         if self.config['unity_camera']:
             try:
                 u_frame = fetch_frame_unity()
-            except Exception:
+            except (OSError, cv2.error):
                 print("Unity not up")
         elif self.config['scene_camera']:
             _, u_frame = self.cam_scene.read()
