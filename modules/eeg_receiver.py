@@ -44,9 +44,10 @@ class EEG_Receiver(Thread):
 
         if self.mode == 'file':
             print(f"[Receiver] Input Mode: File")
-            self.data_path = params.get('data_path', None)    
+            self.data_path = params.get('data_path', None)
             self.explorer = self.simulate_device()
-        
+            self.connected = True
+
         elif self.mode == 'device':
             print(f"[Receiver] Input Mode: Device")
             self.device_name = params.get('device_name', 'Explore_842F')
@@ -63,6 +64,7 @@ class EEG_Receiver(Thread):
                           "switching to file mode using data_path.")
                     self.mode = 'file'
                     self.explorer = self.simulate_device()
+                    self.connected = True
                     return
                 raise ImportError(
                     f"Could not import explorepy: {e}. Install explorepy or set "
@@ -122,8 +124,8 @@ class EEG_Receiver(Thread):
             
         elif self.mode == 'file':
             print("[Receiver] Stopping thread reading from file...")
-            # Implement any necessary cleanup for file reading here
-            pass
+            if self.explorer:
+                self.explorer.stop_acquisition()
 
 
 
@@ -180,12 +182,13 @@ class EEG_Receiver(Thread):
         
         # Inner MockPacket class
         class MockPacket:
-            def __init__(self, t_vector, exg_data):
-                self.t_vector = t_vector
+            '''Mirrors explorepy packets: scalar timestamp, exg shaped (n_ch, n_samples).'''
+            def __init__(self, timestamp, exg_data):
+                self.timestamp = timestamp
                 self.exg_data = exg_data
-            
+
             def get_data(self):
-                return self.t_vector, self.exg_data
+                return self.timestamp, self.exg_data
 
         # Inner MockExplore class
         class MockExplore:
@@ -255,12 +258,8 @@ class EEG_Receiver(Thread):
                     if wait_time > 0:
                         time.sleep(wait_time)
                     
-                    # Create packet
-                    t_vec = np.array([self.times[idx]])
-                    # Ensure shape is (1, n_ch)
-                    d_vec = self.exg[idx].reshape(1, -1)
-                    
-                    packet = MockPacket(t_vec, d_vec)
+                    # Create packet: one sample, shaped (n_ch, 1) like explorepy
+                    packet = MockPacket(self.times[idx], self.exg[idx].reshape(-1, 1))
                     self.receiver.update_buffer(packet)
                     
                     idx += 1
