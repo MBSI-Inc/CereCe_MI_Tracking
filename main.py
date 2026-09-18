@@ -222,8 +222,8 @@ def start_MI_Tracking(config_path='config.yaml', modules=None, enable=None,
                 if not _read_keys(pipeline):
                     raise KeyboardInterrupt
 
-            if (pipeline.exit_on_source_end and status['source_finished']):
-                print("[Main] EEG source finished — stopping.")
+            if (pipeline.exit_on_source_end and status['source_exhausted']):
+                print("[Main] EEG source exhausted (end of replay) — stopping.")
                 break
             if run_duration > 0 and (time.time() - start_time) >= run_duration:
                 print(f"[Main] Reached run_duration ({run_duration:g}s) — stopping.")

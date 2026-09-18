@@ -8,6 +8,7 @@ marked `hardware` and deselected by default (see pytest.ini).
 
 import contextlib
 import io
+import time
 import types
 
 import pytest
@@ -122,16 +123,27 @@ def _file_receiver(path):
                          'buffer_size': 50})
 
 
-def test_file_replay_finishes_and_fills_the_buffer(tmp_path):
+def _source_state():
+    pytest.importorskip('pandas')
+    from modules.eeg_receiver import SourceState
+    return SourceState
+
+
+def test_file_replay_reaches_exhausted_and_fills_the_buffer(tmp_path):
+    SourceState = _source_state()
     path = _write_csv(tmp_path / 'tiny.csv',
                       [(0.0, 1, 2, 3, 4), (0.001, 5, 6, 7, 8), (0.002, 9, 10, 11, 12)])
     rx = _file_receiver(path)
     try:
-        assert rx.finished is False
+        # Constructed but never started: nothing has been asked of it yet.
+        assert rx.state is SourceState.IDLE
+        assert rx.source_exhausted is False
+
         rx.start()
         rx.join(timeout=5.0)
 
-        assert rx.finished is True
+        assert rx.state is SourceState.EXHAUSTED
+        assert rx.source_exhausted is True
         data = rx.get_buffer_data()
         assert data.shape == (3, 5)          # timestamp + 4 channels
         assert data[0][0] == pytest.approx(0.0)
@@ -140,13 +152,78 @@ def test_file_replay_finishes_and_fills_the_buffer(tmp_path):
         rx.stop()
 
 
+def test_stopped_mid_replay_is_not_exhausted(tmp_path):
+    """stop() during a replay must not look like a completed recording."""
+    SourceState = _source_state()
+    # Spaced timestamps so the replay is still running when stop() lands.
+    rows = [(i * 0.05, 1, 2, 3, 4) for i in range(40)]
+    path = _write_csv(tmp_path / 'longer.csv', rows)
+    rx = _file_receiver(path)
+    rx.start()
+    rx.stop()
+    rx.join(timeout=5.0)
+    assert rx.state is SourceState.STOPPED
+    assert rx.source_exhausted is False
+    assert len(rx.get_buffer_data()) < len(rows)
+
+
+def test_stop_before_thread_starts_is_honoured(tmp_path):
+    """A stop() that lands before run() must not be undone by the thread."""
+    SourceState = _source_state()
+    rows = [(i * 0.05, 1, 2, 3, 4) for i in range(40)]
+    path = _write_csv(tmp_path / 'longer.csv', rows)
+    rx = _file_receiver(path)
+    rx._stopped = True          # simulate stop() winning the race
+    rx.start()
+    rx.join(timeout=5.0)
+    assert rx.running is False
+    assert rx.source_exhausted is False
+    assert rx.state is SourceState.STOPPED
+
+
+def test_continuous_source_streams_and_is_never_exhausted(tmp_path):
+    """
+    The real-headset case: data keeps arriving, so the source is STREAMING and
+    never EXHAUSTED. There is no "finished" for live EEG.
+    """
+    np = pytest.importorskip('numpy')
+    SourceState = _source_state()
+    path = _write_csv(tmp_path / 'tiny.csv', [(0.0, 1, 2, 3, 4)])
+    rx = _file_receiver(path)
+    try:
+        packet = types.SimpleNamespace(
+            get_data=lambda: (2.5, np.array([[1.0], [3.0], [5.0], [7.0]])))
+        for _ in range(3):
+            rx.update_buffer(packet)
+            assert rx.state is SourceState.STREAMING
+            assert rx.source_exhausted is False
+        assert rx.is_healthy() is True
+    finally:
+        rx.stop()
+
+
+def test_stale_when_data_stops_arriving(tmp_path):
+    SourceState = _source_state()
+    path = _write_csv(tmp_path / 'tiny.csv', [(0.0, 1, 2, 3, 4)])
+    rx = _file_receiver(path)
+    try:
+        rx.last_data_time = time.time() - 60      # last packet a minute ago
+        assert rx.state is SourceState.STALE
+        assert rx.is_healthy() is False
+        assert rx.is_healthy(timeout=120) is True  # timeout is parameterisable
+    finally:
+        rx.stop()
+
+
 def test_health_is_false_until_data_arrives(tmp_path):
+    SourceState = _source_state()
     path = _write_csv(tmp_path / 'tiny.csv', [(0.0, 1, 2, 3, 4)])
     rx = _file_receiver(path)
     try:
         # File mode marks itself connected, but no packet has arrived yet.
         assert rx.last_data_time is None
         assert rx.is_healthy() is False
+        assert rx.state is SourceState.IDLE
     finally:
         rx.stop()
 

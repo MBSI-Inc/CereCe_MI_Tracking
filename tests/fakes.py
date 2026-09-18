@@ -20,12 +20,23 @@ class FakeEEGReceiver:
     def __init__(self, params=None):
         params = params or {}
         self.healthy = params.get('healthy', True)
-        self.finished = bool(params.get('finished', False))
-        self.finish_after = params.get('finish_after')       # polls before finishing
+        # Mirrors the real receiver: EXHAUSTED is for finite sources only.
+        self.source_exhausted = bool(params.get('source_exhausted', False))
+        self.finish_after = params.get('finish_after')       # polls before exhausting
         self.samples = int(params.get('samples', 2000))
         self.started = False
         self.stopped = False
         self.polls = 0
+
+    @property
+    def state(self):
+        if self.stopped:
+            return 'stopped'
+        if self.source_exhausted:
+            return 'exhausted'
+        if not self.started:
+            return 'idle'
+        return 'streaming' if self.healthy else 'stale'
 
     def start(self):
         self.started = True
@@ -36,13 +47,13 @@ class FakeEEGReceiver:
     def join(self, timeout=None):
         return None
 
-    def is_healthy(self, timeout=5.0):
+    def is_healthy(self, timeout=None):
         return self.healthy
 
     def get_buffer_data(self):
         self.polls += 1
         if self.finish_after and self.polls >= int(self.finish_after):
-            self.finished = True
+            self.source_exhausted = True
         # Plain list: the pipeline only checks len(); no numpy needed.
         return [[0.0] * 5] * (self.samples if self.healthy else 0)
 

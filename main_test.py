@@ -7,7 +7,7 @@ import sys
 sys.path.append(os.getcwd())
 
 from utils.load_config import load_config
-from modules.eeg_receiver import EEG_Receiver
+from modules.eeg_receiver import EEG_Receiver, SourceState
 from modules.mi_predictor import MI_Predictor
 from modules.evidence_accumulator import Evidence_Accumulator
 from modules.wheelchair_controller import Wheelchair_Controller
@@ -101,10 +101,11 @@ def start_MI_Tracking_Test(config_path):
             
             # --- End of stream ---
             # get_buffer_data() is cumulative (it never pops), so waiting for an
-            # empty buffer would hang forever once the source finishes. The
-            # receiver clears `running` when a file replay reaches EOF.
-            if not receiver.running:
-                print("[Main Test] Input stream ended.")
+            # empty buffer would hang forever once the source finishes. A finite
+            # source (CSV replay) reports EXHAUSTED at EOF; a live headset only
+            # ever reports STOPPED, when we ask it to stop.
+            if receiver.state in (SourceState.EXHAUSTED, SourceState.STOPPED):
+                print(f"[Main Test] Input stream ended (state={receiver.state.value}).")
                 break
             # Safety net: a source that never produced a sample must not hang.
             if not saw_data and not receiver.is_alive():

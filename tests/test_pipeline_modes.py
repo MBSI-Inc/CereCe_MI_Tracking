@@ -151,14 +151,28 @@ def test_eeg_requested_but_unhealthy_never_auto_arms():
     pipe.close()
 
 
-def test_source_finished_is_surfaced():
+def test_source_exhausted_only_for_finite_sources():
     config = base_config(modules=modules(eeg=ON),
                          receiver_params={'finish_after': 1},
                          exit_on_source_end=True)
     pipe = make(config)
     pipe.start()
-    assert pipe.step(now=0.0)['source_finished'] is True
+    status = pipe.step(now=0.0)
+    assert status['source_exhausted'] is True
+    assert status['source_state'] == 'exhausted'
     assert pipe.exit_on_source_end is True
+    pipe.close()
+
+
+def test_continuous_source_is_never_exhausted():
+    """A live headset streams until stopped; it must not look like a replay."""
+    config = base_config(modules=modules(eeg=ON), exit_on_source_end=True)
+    pipe = make(config)
+    pipe.start()
+    for i in range(5):
+        status = pipe.step(now=i * 0.1)
+        assert status['source_exhausted'] is False
+        assert status['source_state'] == 'streaming'
     pipe.close()
 
 

@@ -403,7 +403,8 @@ class Pipeline:
             'obstacle': False,
             'command': None,
             'command_sent': False,
-            'source_finished': False,
+            'source_exhausted': False,
+            'source_state': None,
             'sonar_distances': None,
             'sonar_healthy': None,
             'mode_label': self.mode_label(),
@@ -440,8 +441,13 @@ class Pipeline:
         else:
             self.eeg_gate = False
 
-        status['source_finished'] = bool(
-            self.receiver is not None and getattr(self.receiver, 'finished', False))
+        # Only a finite source (file replay) can be exhausted; a live headset
+        # streams until stopped and never sets this.
+        if self.receiver is not None:
+            status['source_exhausted'] = bool(
+                getattr(self.receiver, 'source_exhausted', False))
+            source_state = getattr(self.receiver, 'state', None)
+            status['source_state'] = getattr(source_state, 'value', source_state)
 
         # ── Steering: held key wins, then gaze, else stop ────────────────
         if self.force_kb_steering:

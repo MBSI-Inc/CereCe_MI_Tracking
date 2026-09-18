@@ -1,5 +1,6 @@
 from threading import Thread, Lock
 from collections import deque
+from enum import Enum
 import numpy as np
 import pandas as pd
 import time
@@ -13,6 +14,27 @@ import logging
 TOPICS = None
 
 _log = logging.getLogger(__name__)
+
+DEFAULT_HEALTH_TIMEOUT = 5.0
+
+
+class SourceState(str, Enum):
+    """
+    Lifecycle of an EEG source.
+
+    A headset streams continuously and only ever reaches STOPPED (when you call
+    stop()); EXHAUSTED is meaningful for finite sources only, i.e. a replayed
+    CSV/NPY. Consumers that want "is the run over?" should test for EXHAUSTED or
+    STOPPED explicitly rather than for a single boolean, so that a stopped live
+    headset is never mistaken for a finished recording.
+    """
+
+    IDLE = 'idle'            # constructed, start() not called
+    STARTING = 'starting'    # started, no sample has arrived yet
+    STREAMING = 'streaming'  # data arrived within the health timeout
+    STALE = 'stale'          # started, but no data within the health timeout
+    EXHAUSTED = 'exhausted'  # finite source reached EOF (file replay only)
+    STOPPED = 'stopped'      # stop() was called
 
 
 class EEG_Receiver(Thread):
@@ -40,9 +62,14 @@ class EEG_Receiver(Thread):
         self.buffer_lock = Lock()
         self.connected = False
         self.last_data_time = None
-        # Set once the source is exhausted (file mode) or acquisition ends,
-        # so callers can tell "no more data is coming" from "data is late".
-        self.finished = False
+        self.health_timeout = float(
+            params.get('health_timeout', DEFAULT_HEALTH_TIMEOUT))
+        # Lifecycle flags behind SourceState. `running` stays the acquisition
+        # flag (the device wait-loop and stop() use it); the rest record how the
+        # source ended so consumers can tell the cases apart.
+        self._ever_started = False
+        self._stopped = False
+        self._exhausted = False
 
 
         if self.mode == 'file':
@@ -96,8 +123,18 @@ class EEG_Receiver(Thread):
 
 
 
+    def start(self):
+        """Start the acquisition thread and move out of SourceState.IDLE."""
+        self._ever_started = True
+        super().start()
+
     def run(self):
-        self.running = True
+        # stop() may already have been called between start() and the thread
+        # actually running; honour it rather than resurrecting acquisition.
+        self.running = not self._stopped
+        if not self.running:
+            print("[Receiver] stop() arrived before the thread started; not acquiring.")
+            return
         if self.mode == 'device':
             print("[Receiver] Thread started. listening to hardware...")
             self.explorer.stream_processor.subscribe(
@@ -113,11 +150,10 @@ class EEG_Receiver(Thread):
             print(f"[Receiver] Thread started. reading from file: {self.data_path}...")
             if self.explorer:
                  self.explorer.acquire()
-            self.finished = True
-            print("[Receiver] Source exhausted (file mode).")
 
 
     def stop(self):
+        self._stopped = True
         self.running = False
         if self.mode == 'device':
             print("[Receiver] Stopping thread and disconnecting from device...")
@@ -133,10 +169,43 @@ class EEG_Receiver(Thread):
                 self.explorer.stop_acquisition()
 
 
+    @property
+    def state(self) -> SourceState:
+        """
+        Current lifecycle state. Uses this receiver's `health_timeout`
+        (`health_timeout` in receiver_params, default 5 s) for the
+        STREAMING/STALE boundary.
+        """
+        if self._stopped:
+            return SourceState.STOPPED
+        if self._exhausted:
+            return SourceState.EXHAUSTED
+        if self.last_data_time is None:
+            return SourceState.STARTING if self._ever_started else SourceState.IDLE
+        if (time.time() - self.last_data_time) < self.health_timeout:
+            return SourceState.STREAMING
+        return SourceState.STALE
 
-    def is_healthy(self, timeout=5.0):
-        """Returns True if data has been received within the last `timeout` seconds."""
-        if not self.connected or self.last_data_time is None:
+    @property
+    def source_exhausted(self) -> bool:
+        """
+        True only when a *finite* source ran to its end (file replay).
+
+        A device source streams indefinitely and never sets this, so
+        `--exit-on-source-end` cannot fire on live EEG.
+        """
+        return self._exhausted
+
+    def _mark_source_exhausted(self):
+        self._exhausted = True
+
+    def is_healthy(self, timeout=None):
+        """
+        True if data has been received within the last `timeout` seconds
+        (defaults to this receiver's `health_timeout`).
+        """
+        timeout = self.health_timeout if timeout is None else timeout
+        if not self.connected or self._stopped or self.last_data_time is None:
             return False
         return (time.time() - self.last_data_time) < timeout
 
@@ -235,7 +304,12 @@ class EEG_Receiver(Thread):
 
 
             def acquire(self):
-                self.running = True
+                # Respect a stop() that landed before acquire() was entered,
+                # and keep watching the receiver's flag so an in-flight stop
+                # ends the replay promptly.
+                self.running = self.receiver.running
+                if not self.running:
+                    return
                 idx = 0
                 n_samples = len(self.times)
                 # Calculate delays
@@ -248,7 +322,7 @@ class EEG_Receiver(Thread):
                 if n_samples > 0:
                     start_data_time = self.times[0] 
                 
-                while self.running and idx < n_samples:
+                while self.running and self.receiver.running and idx < n_samples:
                     current_data_time = self.times[idx]
                     
                     # Target elapsed time since start
@@ -275,6 +349,10 @@ class EEG_Receiver(Thread):
                 # so running must be cleared here too: consumers poll it to tell
                 # "stream finished" apart from "thread still streaming".
                 self.receiver.running = False
+                # EXHAUSTED only if we actually consumed the whole file; an early
+                # stop() must not look like a completed recording.
+                if idx >= n_samples:
+                    self.receiver._mark_source_exhausted()
 
             def stop_acquisition(self):
                 self.running = False
@@ -321,7 +399,8 @@ if __name__ == "__main__":
                 break
             data = receiver.get_buffer_data()
             print(f"  buffer={len(data):>5}/{args.buffer_size}  "
-                  f"healthy={receiver.is_healthy()}  finished={receiver.finished}")
+                  f"healthy={receiver.is_healthy()}  "
+                  f"state={receiver.state.value}")
             time.sleep(0.5)
     except KeyboardInterrupt:
         print("\nInterrupted.")

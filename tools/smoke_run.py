@@ -77,7 +77,7 @@ def _run_subset(config, factories, enabled_keys, duration, loop_interval,
             if status['command'] is not None and (
                     not result['commands'] or result['commands'][-1] != status['command']):
                 result['commands'].append(status['command'])
-            if pipeline.exit_on_source_end and status['source_finished']:
+            if pipeline.exit_on_source_end and status['source_exhausted']:
                 break
             time.sleep(loop_interval)
 
