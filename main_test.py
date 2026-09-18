@@ -12,6 +12,10 @@ from modules.mi_predictor import MI_Predictor
 from modules.evidence_accumulator import Evidence_Accumulator
 from modules.wheelchair_controller import Wheelchair_Controller
 
+# NOTE: this is the legacy single-stream integration smoke test (EEG → predictor
+# → accumulator → controller). The unified entry point is main.py, which can run
+# any subset of modules; use `python main.py` for real operation.
+
 def start_MI_Tracking_Test(config_path):
 
     # --- Load Configuration ---
@@ -20,6 +24,8 @@ def start_MI_Tracking_Test(config_path):
     # --- Override for Test ---
     print("--- Test Mode ---")
     config['receiver_params']['input_mode'] = 'file'
+    # Never touch real motors from a smoke test.
+    config['control_params']['debug_mode'] = True
     # Use the provided CSV file
     test_file = 'data/MItest_24-01-27_ExG.csv'
     if os.path.exists(test_file):
@@ -71,13 +77,11 @@ def start_MI_Tracking_Test(config_path):
                     accumulator_status = f"Evidence: {accumulator.evidence}, Stable: {stable_cmd}"
 
                     # --- Module 4: Controller Status ---
-                    # Control Wheelchair based on stable command
-                    if stable_cmd == 'left':
-                        controller.move_left()
-                        controller_status = "Moving Left"
-                    elif stable_cmd == 'right':
-                        controller.move_right()
-                        controller_status = "Moving Right"
+                    # Control Wheelchair based on stable command.
+                    # The accumulator emits 'active' (MI intent) / 'inactive'.
+                    if stable_cmd == 'active':
+                        controller.move_forward()
+                        controller_status = "MI active → forward"
                     else:
                         controller.stop()
                         controller_status = "Stopping"

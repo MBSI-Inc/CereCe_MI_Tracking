@@ -9,12 +9,19 @@
 # --- System ---
 loop_interval: 0.05
 show_camera_ui: true        # Keep UI open so WASD + Q-to-quit still work
+headless: false
+run_duration: 0             # seconds; 0 = run until you quit
+exit_on_source_end: false   # true = stop when a replayed CSV runs out
+command_keepalive: 0.5
+keyboard_override_hold: 0.25
+start_drive_enabled: auto   # auto = OFF here (EEG is requested); MI gate toggles drive
 
 # --- Module Enable/Disable ---
 modules:
   eeg_receiver: true        # EEG provides the active/inactive gate
-  gaze_receiver: false      # No camera — direction comes from keyboard
+  gaze_receiver: false      # No camera — steering comes from the keyboard
   wheelchair_controller: true
+  ultrasonic_receiver: false  # Obstacle sensor not part of EEG-only bench runs
 
 
 # --- EEG Receiver ---
@@ -38,7 +45,6 @@ predictor_params:
   high_freq: 30.0
   signal_len: 2.0
   model_path: 'models/LDA/MItest_24-01-27.sav'
-  mi_threshold: 0.6
 
 
 # --- Evidence Accumulator ---

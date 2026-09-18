@@ -40,6 +40,9 @@ class EEG_Receiver(Thread):
         self.buffer_lock = Lock()
         self.connected = False
         self.last_data_time = None
+        # Set once the source is exhausted (file mode) or acquisition ends,
+        # so callers can tell "no more data is coming" from "data is late".
+        self.finished = False
 
 
         if self.mode == 'file':
@@ -110,6 +113,8 @@ class EEG_Receiver(Thread):
             print(f"[Receiver] Thread started. reading from file: {self.data_path}...")
             if self.explorer:
                  self.explorer.acquire()
+            self.finished = True
+            print("[Receiver] Source exhausted (file mode).")
 
 
     def stop(self):

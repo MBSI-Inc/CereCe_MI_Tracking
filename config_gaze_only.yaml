@@ -4,12 +4,20 @@
 
 # --- System ---
 loop_interval: 0.05
+show_camera_ui: true
+headless: false
+run_duration: 0             # seconds; 0 = run until you quit
+exit_on_source_end: false
+command_keepalive: 0.5
+keyboard_override_hold: 0.25
+start_drive_enabled: auto   # auto = ON here (no EEG request), so gaze drives immediately
 
 # --- Module Enable/Disable ---
 modules:
   eeg_receiver: false       # DISABLED: Gaze-only mode
   gaze_receiver: true       # Enable gaze tracking
   wheelchair_controller: true   # Gaze directly drives motors
+  ultrasonic_receiver: false    # Enable for mixed gaze+obstacle bench runs
 
 # --- EEG Receiver (disabled but still needed for config)---
 receiver_params:
@@ -31,7 +39,6 @@ predictor_params:
   high_freq: 30
   signal_len: 5
   model_path: 'models/LDA/MItest_24-01-27.sav'
-  mi_threshold: 0.6
 
 # --- Evidence Accumulator (disabled but still needed for config)---
 accumulator_params:
