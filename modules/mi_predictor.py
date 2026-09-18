@@ -1,10 +1,7 @@
 import numpy as np
 import pickle
 import os
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-from scipy.signal import butter, filtfilt
+from scipy.signal import welch, butter, filtfilt
 
 
 class MI_Predictor:
@@ -67,6 +64,13 @@ class MI_Predictor:
         if self.model is None or len(psd_features) == 0:
             return 'none'
 
+        expected = getattr(self.model, 'n_features_in_', None)
+        if expected is None and hasattr(self.model, 'coef_'):
+            expected = self.model.coef_.shape[1]
+        if expected is not None and len(psd_features) != expected:
+            print(f"[MI_Predictor] Feature mismatch: {len(psd_features)} extracted, {expected} expected. Check config.")
+            return 'none'
+
         try:
             prediction = self.model.predict([psd_features])[0]
             return 'active' if prediction == 1 else 'none'
@@ -95,17 +99,18 @@ class MI_Predictor:
 
     def _psd_epoch(self, epoch, sf, low, high):
         '''
-        Matches plt.psd(x, NFFT=sf, Fs=sf) from Cerebruh helper_functions.py exactly.
-        Frequency bins are integers with 1 Hz resolution; slicing is exclusive of high
-        (same as original: psds[:, low_ind:high_ind]).
+        Matches plt.psd(x, NFFT=sf, Fs=sf) from Cerebruh helper_functions.py.
+        Uses scipy.signal.welch with identical parameters (nperseg=sf, noverlap=0,
+        window='hann', detrend='constant') to avoid matplotlib overhead.
+        Frequency resolution is 1 Hz; slicing is exclusive of high — matches training.
         '''
         n_ch = epoch.shape[0]
         psds = []
         freqs = None
 
         for ch in range(n_ch):
-            psd, f = plt.psd(epoch[ch, :], NFFT=sf, Fs=sf)
-            plt.close()
+            f, psd = welch(epoch[ch, :], fs=sf, nperseg=int(sf), noverlap=0,
+                           window='hann', scaling='density', detrend='constant')
             if freqs is None:
                 freqs = f
             psds.append(psd)

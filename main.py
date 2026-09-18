@@ -63,9 +63,14 @@ def start_MI_Tracking(config_path):
     # Keyboard direction, updated each frame from cv2.waitKey
     keyboard_direction = 'stop'
 
-    # MI toggle state — each confirmed MI detection flips drive on/off
+    # Drive state
     drive_enabled = False
-    prev_mi_gate = 'inactive'
+    prev_mi_gate  = 'inactive'
+    # Gear: False = forward, True = reverse (toggled by blink)
+    reverse_gear  = False
+    prev_blink    = False
+    # Manual override: 'g' key forces keyboard steering regardless of gaze/EEG state
+    force_kb_steering = False
 
     main_loop_interval = config.get('loop_interval', 0.05)
     print("[Main] Control loop started.")
@@ -101,11 +106,23 @@ def start_MI_Tracking(config_path):
                     drive_enabled = False
                     prev_mi_gate = 'inactive'
 
-            # ── Direction source ──────────────────────────────────────────────
-            if gaze_only_fallback or not gaze_enabled:
+            # ── Direction source + blink gear toggle ─────────────────────────
+            if force_kb_steering or gaze_only_fallback or not gaze_enabled:
                 direction = keyboard_direction
             else:
                 direction = gaze.get_direction()
+                blink = gaze.get_blink()
+                if blink and not prev_blink:
+                    reverse_gear = not reverse_gear
+                    print(f"[Main] Gear: {'REVERSE' if reverse_gear else 'FORWARD'} (blink)")
+                prev_blink = blink
+
+            # Flip forward↔backward when in reverse gear; left/right unchanged
+            if reverse_gear:
+                if direction == 'forward':
+                    direction = 'backward'
+                elif direction == 'backward':
+                    direction = 'forward'
 
             # ── Control ───────────────────────────────────────────────────────
             if not control_enabled:
@@ -133,7 +150,9 @@ def start_MI_Tracking(config_path):
                     cv2.putText(frame, 'Camera warming up...', (20, 100),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (180, 180, 180), 2)
 
-                if gaze_only_fallback:
+                if force_kb_steering:
+                    mode_label, color_mode = "KB OVERRIDE", (0, 128, 255)
+                elif gaze_only_fallback:
                     mode_label, color_mode = "KEYBOARD", (0, 255, 255)
                 elif gaze_enabled:
                     mode_label, color_mode = "EEG+GAZE", (255, 255, 0)
@@ -141,6 +160,8 @@ def start_MI_Tracking(config_path):
                     mode_label, color_mode = "EEG+KB", (0, 200, 255)
                 drive_label = "DRIVE: ON" if drive_enabled else "DRIVE: OFF"
                 drive_color = (0, 255, 0) if drive_enabled else (0, 0, 255)
+                gear_label  = "GEAR: REV" if reverse_gear else "GEAR: FWD"
+                gear_color  = (0, 165, 255) if reverse_gear else (255, 255, 255)
                 cv2.putText(frame, f'Mode: {mode_label}', (20, 40),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, color_mode, 2, cv2.LINE_AA)
                 cv2.putText(frame, f'Direction: {direction}', (20, 75),
@@ -148,8 +169,10 @@ def start_MI_Tracking(config_path):
                 if not gaze_only_fallback:
                     cv2.putText(frame, drive_label, (20, 110),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, drive_color, 2, cv2.LINE_AA)
-                if gaze_only_fallback or not gaze_enabled:
-                    cv2.putText(frame, 'SPACE = toggle   WASD = steer   Q = quit', (20, 110),
+                    cv2.putText(frame, gear_label, (20, 145),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, gear_color, 2, cv2.LINE_AA)
+                if force_kb_steering or gaze_only_fallback or not gaze_enabled:
+                    cv2.putText(frame, 'SPACE=drive  WASD=steer  G=gaze  Q=quit', (20, 110),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 165, 255), 2, cv2.LINE_AA)
 
                 cv2.imshow('Camera UI', frame)
@@ -158,9 +181,15 @@ def start_MI_Tracking(config_path):
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord('q'):
                     raise KeyboardInterrupt
+                # Closing the window with X also stops everything
+                if cv2.getWindowProperty('Camera UI', cv2.WND_PROP_VISIBLE) < 1:
+                    raise KeyboardInterrupt
                 if key == ord(' '):
                     drive_enabled = not drive_enabled
                     print(f"[Main] Drive {'ENABLED' if drive_enabled else 'DISABLED'} (spacebar)")
+                if key == ord('g'):
+                    force_kb_steering = not force_kb_steering
+                    print(f"[Main] Steering: {'KEYBOARD OVERRIDE' if force_kb_steering else 'GAZE'} (g key)")
                 keyboard_direction = _KEY_MAP.get(key, 'stop')
 
             # ── Rate limiting ─────────────────────────────────────────────────

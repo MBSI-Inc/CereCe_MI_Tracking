@@ -93,6 +93,10 @@ class EEG_Receiver(Thread):
         self.running = False
         if self.mode == 'device':
             print("[Receiver] Stopping thread and disconnecting from device...")
+            try:
+                self.explorer.stop_acquisition()
+            except Exception:
+                pass
             self.explorer.disconnect()
             
         elif self.mode == 'file':
@@ -111,38 +115,22 @@ class EEG_Receiver(Thread):
     def update_buffer(self, packet):
         '''
         Callback function to update the buffer with new EEG data packets.
-        args:
-            packet: explorepy data packet
+        explorepy returns eeg shape (n_ch, n_samples) with a scalar timestamp.
+        Each buffer entry is stored as (1 + n_ch,): [timestamp, ch0, ch1, ...].
         '''
         self.last_data_time = time.time()
         try:
-            # get data from the packet
-            t_vector, exg_data = packet.get_data()  # t_vector: scalar or (N,), exg_data: (N, n_ch)
-            t_vector = np.asarray(t_vector)
-            if t_vector.ndim == 0:
-                t_vector = t_vector.reshape(1)
+            t, exg = packet.get_data()  # exg: (n_ch, n_samples), t: scalar
+            exg = np.asarray(exg)       # (n_ch, n_samples)
+            t   = float(np.asarray(t).ravel()[0])
+            n_samples = exg.shape[1]
 
-            if exg_data.ndim == 1:
-                exg_data = exg_data.reshape(1, -1)
-
-            if exg_data.shape[0] != t_vector.shape[0]:
-                # If timestamp is a single scalar for a single sample packet,
-                # broadcast it to match the sample count when safe.
-                if t_vector.shape[0] == 1 and exg_data.shape[0] > 1:
-                    t_vector = np.full((exg_data.shape[0],), t_vector[0])
-                else:
-                    raise ValueError(
-                        f"Timestamp/sample mismatch: {t_vector.shape[0]} timestamps for {exg_data.shape[0]} samples"
-                    )
-
-            # Acquire lock to safely update the buffer
             with self.buffer_lock:
-                # put each sample into the buffer queue
-                for i in range(exg_data.shape[0]):
-                    time_stamp = t_vector[i]
-                    sample = exg_data[i, :]
-                    flat_sample = np.concatenate(([time_stamp], sample))  # shape: (1 + n_ch,)
-                    self.buffer.append(flat_sample)
+                for i in range(n_samples):
+                    flat = np.empty(1 + exg.shape[0])
+                    flat[0]  = t
+                    flat[1:] = exg[:, i]
+                    self.buffer.append(flat)
         except Exception as e:
             print(f"[Receiver] update_buffer error: {e}")
 

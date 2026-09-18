@@ -2,7 +2,7 @@
   "debug": true,
   "unity_camera": false,
   "scene_camera": false,
-  "controller_mode": 0,
+  "controller_mode": 1,
   "with_black_border": false,
   "blink_to_recalibrate": false,
   "cruise_control_enabled": false,

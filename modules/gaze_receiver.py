@@ -75,7 +75,22 @@ class Gaze_Receiver:
         """Return the latest UI frame from the GazeTracker, or None if unavailable."""
         if self.tracker is None:
             return None
-        return self.tracker.get_frame()
+        # current_control_frame is always the most recently processed frame.
+        # The frame_queue is a FIFO that accumulates lag when the producer (50Hz)
+        # outpaces the consumer (20Hz) — skipping it eliminates that delay.
+        ccf = getattr(self.tracker, 'current_control_frame', None)
+        if ccf is not None and ccf.size > 0 and ccf.any():
+            return ccf
+        return None
+
+    def get_blink(self) -> bool:
+        """Return True on a confirmed double-blink event (fires once per event)."""
+        if self.demo_mode or self.tracker is None:
+            return False
+        data = self.get_raw()
+        if data is None:
+            return False
+        return bool(data.get('blinked', False))
 
     def get_direction(self) -> Optional[str]:
         """
