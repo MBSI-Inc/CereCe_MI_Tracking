@@ -7,10 +7,14 @@ import sys
 sys.path.append(os.getcwd())
 
 from utils.load_config import load_config
-from modules.eeg_receiver import EEG_Receiver
+from modules.eeg_receiver import EEG_Receiver, SourceState
 from modules.mi_predictor import MI_Predictor
 from modules.evidence_accumulator import Evidence_Accumulator
 from modules.wheelchair_controller import Wheelchair_Controller
+
+# NOTE: this is the legacy single-stream integration smoke test (EEG → predictor
+# → accumulator → controller). The unified entry point is main.py, which can run
+# any subset of modules; use `python main.py` for real operation.
 
 def start_MI_Tracking_Test(config_path):
 
@@ -20,6 +24,8 @@ def start_MI_Tracking_Test(config_path):
     # --- Override for Test ---
     print("--- Test Mode ---")
     config['receiver_params']['input_mode'] = 'file'
+    # Never touch real motors from a smoke test.
+    config['control_params']['debug_mode'] = True
     # Use the provided CSV file (override with MI_TEST_FILE for shorter replays)
     test_file = os.environ.get('MI_TEST_FILE', 'data/MItest_24-01-27_ExG.csv')
     if os.path.exists(test_file):
@@ -74,13 +80,11 @@ def start_MI_Tracking_Test(config_path):
                     accumulator_status = f"Evidence: {accumulator.evidence}, Stable: {stable_cmd}"
 
                     # --- Module 4: Controller Status ---
-                    # Control Wheelchair based on stable command
-                    if stable_cmd == 'left':
-                        controller.move_left()
-                        controller_status = "Moving Left"
-                    elif stable_cmd == 'right':
-                        controller.move_right()
-                        controller_status = "Moving Right"
+                    # Control Wheelchair based on stable command.
+                    # The accumulator emits 'active' (MI intent) / 'inactive'.
+                    if stable_cmd == 'active':
+                        controller.move_forward()
+                        controller_status = "MI active → forward"
                     else:
                         controller.stop()
                         controller_status = "Stopping"
@@ -97,10 +101,11 @@ def start_MI_Tracking_Test(config_path):
             
             # --- End of stream ---
             # get_buffer_data() is cumulative (it never pops), so waiting for an
-            # empty buffer would hang forever once the source finishes. The
-            # receiver clears `running` when a file replay reaches EOF.
-            if not receiver.running:
-                print("[Main Test] Input stream ended.")
+            # empty buffer would hang forever once the source finishes. A finite
+            # source (CSV replay) reports EXHAUSTED at EOF; a live headset only
+            # ever reports STOPPED, when we ask it to stop.
+            if receiver.state in (SourceState.EXHAUSTED, SourceState.STOPPED):
+                print(f"[Main Test] Input stream ended (state={receiver.state.value}).")
                 break
             # Safety net: a source that never produced a sample must not hang.
             if not saw_data and not receiver.is_alive():

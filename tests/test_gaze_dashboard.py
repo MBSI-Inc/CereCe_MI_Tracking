@@ -2,14 +2,22 @@ import asyncio
 import re
 import threading
 
-from fastapi.routing import APIRoute, APIWebSocketRoute
+import pytest
 
-from Gaze_Dashboard_Import.dashboard import application, runtime
-from Gaze_Dashboard_Import.dashboard.paths import (
-    CONFIG_PATH,
-    STATIC_DIR,
-    UNITY_BUILD_DIR,
-)
+# The dashboard needs fastapi + cv2 + mediapipe. Skip the whole module when
+# those are not installed instead of erroring out the entire pytest run.
+try:
+    from fastapi.routing import APIRoute, APIWebSocketRoute
+
+    from Gaze_Dashboard_Import.dashboard import application, runtime
+    from Gaze_Dashboard_Import.dashboard.paths import (
+        CONFIG_PATH,
+        STATIC_DIR,
+        UNITY_BUILD_DIR,
+    )
+except ImportError as exc:  # pragma: no cover - depends on the environment
+    pytest.skip(f"gaze dashboard dependencies unavailable: {exc}",
+                allow_module_level=True)
 
 
 def test_dashboard_assets_are_packaged():

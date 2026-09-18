@@ -22,6 +22,10 @@ class Ultrasonic_Receiver:
         reconnect_interval (float): seconds between reconnect tries. Default 3.0.
         block_directions (list):    directions suppressed while an obstacle is
                                     present. Default ['forward'].
+        treat_unhealthy_as_obstacle (bool): if True, a disconnected/unknown
+                                    sensor counts as an obstacle (fail-safe).
+                                    Default False (fail-open) — but the first
+                                    unhealthy check logs a warning.
     """
 
     DEFAULT_CHAR_UUID = "a4b5735b-6dd9-4680-ac4b-06b4a209bffa"
@@ -33,6 +37,10 @@ class Ultrasonic_Receiver:
         self.scan_timeout       = float(config.get('scan_timeout', 5.0))
         self.reconnect_interval = float(config.get('reconnect_interval', 3.0))
         self.block_directions   = set(config.get('block_directions', ['forward']))
+        self.treat_unhealthy_as_obstacle = bool(
+            config.get('treat_unhealthy_as_obstacle', False))
+
+        self._unhealthy_warned = False
 
         self._lock = threading.Lock()
         self._lhs: Optional[float] = None
@@ -89,15 +97,36 @@ class Ultrasonic_Receiver:
         return self.connected and self.get_distances() is not None
 
     def is_obstacle(self) -> bool:
-        """True if either sensor reads closer than obstacle_distance. False when unhealthy."""
+        """
+        True if either sensor reads closer than obstacle_distance.
+
+        When the sensor is not reporting, behaviour is explicit rather than
+        silent: `treat_unhealthy_as_obstacle` decides fail-safe (True) vs
+        fail-open (False, the default), and the first unhealthy check warns
+        once so a dead guard is never invisible.
+        """
         d = self.get_distances()
         if not self.connected or d is None:
+            if self.treat_unhealthy_as_obstacle:
+                return True
+            if not self._unhealthy_warned:
+                self._unhealthy_warned = True
+                print("[Ultrasonic] WARNING: sensor unavailable — obstacle guard "
+                      "is INACTIVE (fail-open). Set 'treat_unhealthy_as_obstacle: "
+                      "true' to fail safe.")
             return False
         return d[0] < self.obstacle_distance or d[1] < self.obstacle_distance
 
-    def filter_direction(self, direction: str) -> str:
-        """Return 'stop' instead of `direction` if it is blocked by an obstacle."""
-        if direction in self.block_directions and self.is_obstacle():
+    def filter_direction(self, direction: str, obstacle: Optional[bool] = None) -> str:
+        """
+        Return 'stop' instead of `direction` if it is blocked by an obstacle.
+
+        `obstacle` may be passed in so the main loop evaluates the sensor once
+        per tick instead of once per call; when omitted it is queried here.
+        """
+        if obstacle is None:
+            obstacle = self.is_obstacle()
+        if obstacle and direction in self.block_directions:
             return 'stop'
         return direction
 
