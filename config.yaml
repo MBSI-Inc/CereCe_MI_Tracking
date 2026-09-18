@@ -12,6 +12,7 @@ modules:
   eeg_receiver: true        # Enable EEG data acquisition
   gaze_receiver: true       # Enable gaze tracking
   wheelchair_controller: true  # Enable wheelchair motor control
+  ultrasonic_receiver: true    # Enable BLE ultrasonic obstacle sensor (needs 'bleak')
 
 
 # --- EEG Receiver ---
@@ -55,6 +56,18 @@ gaze_params:
   horizontal_threshold: 50      # |horizontal| > threshold → left/right turn
   vertical_forward_threshold: 30  # vertical > threshold → forward
   vertical_backward_threshold: 0  # vertical < threshold → backward
+
+
+# --- Ultrasonic Obstacle Sensor ---
+# BLE Arduino sending "lhs,rhs" distances (see modules/Ultrasonic_Sensor_Data_Extraction.ino)
+ultrasonic_params:
+  device_name: 'UltrasonicBLE'  # BLE advertised name
+  char_uuid: 'a4b5735b-6dd9-4680-ac4b-06b4a209bffa'
+  obstacle_distance: 50         # cm; a reading below this counts as an obstacle
+  scan_timeout: 5.0             # seconds per BLE scan attempt
+  reconnect_interval: 3.0       # seconds between reconnect attempts
+  block_directions:             # directions forced to 'stop' while an obstacle is present
+    - forward
 
 
 # --- Wheelchair Controller ---

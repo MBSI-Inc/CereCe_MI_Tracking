@@ -9,6 +9,7 @@ from modules.mi_predictor import MI_Predictor
 from modules.evidence_accumulator import Evidence_Accumulator
 from modules.wheelchair_controller import Wheelchair_Controller
 from modules.gaze_receiver import Gaze_Receiver
+from modules.ultrasonic_receiver import Ultrasonic_Receiver
 
 EEG_WARMUP_SECONDS = 5.0
 EEG_HEALTH_TIMEOUT = 5.0
@@ -29,6 +30,7 @@ def start_MI_Tracking(config_path):
     eeg_enabled    = modules_config.get('eeg_receiver', True)
     gaze_enabled   = modules_config.get('gaze_receiver', True)
     control_enabled = modules_config.get('wheelchair_controller', True)
+    sonar_enabled   = modules_config.get('ultrasonic_receiver', False)
 
     receiver = predictor = accumulator = None
     if eeg_enabled:
@@ -42,12 +44,19 @@ def start_MI_Tracking(config_path):
 
     controller = Wheelchair_Controller(config['control_params']) if control_enabled else None
     gaze       = Gaze_Receiver(config['gaze_params']) if gaze_enabled else None
+    sonar      = None
+    if sonar_enabled:
+        sonar = Ultrasonic_Receiver(config.get('ultrasonic_params', {}))
+        if not sonar.available:
+            sonar = None
     show_camera_ui = config.get('show_camera_ui', True)
 
     if receiver is not None:
         receiver.start()
     if gaze is not None:
         gaze.start()
+    if sonar is not None:
+        sonar.start()
 
     # EEG health check after warmup
     gaze_only_fallback = not eeg_enabled
@@ -124,6 +133,12 @@ def start_MI_Tracking(config_path):
                 elif direction == 'backward':
                     direction = 'forward'
 
+            # ── Obstacle guard ────────────────────────────────────────────────
+            # Ultrasonic sensor overrides blocked directions with 'stop'
+            obstacle = sonar.is_obstacle() if sonar is not None else False
+            if sonar is not None:
+                direction = sonar.filter_direction(direction)
+
             # ── Control ───────────────────────────────────────────────────────
             if not control_enabled:
                 print(f"[Main] [DRY RUN] Drive: {'ON' if drive_enabled else 'OFF'} | Dir: {direction}")
@@ -162,6 +177,16 @@ def start_MI_Tracking(config_path):
                 drive_color = (0, 255, 0) if drive_enabled else (0, 0, 255)
                 gear_label  = "GEAR: REV" if reverse_gear else "GEAR: FWD"
                 gear_color  = (0, 165, 255) if reverse_gear else (255, 255, 255)
+                if sonar is not None:
+                    dist = sonar.get_distances()
+                    if not sonar.is_healthy():
+                        sonar_label, sonar_color = "SONAR: --", (128, 128, 128)
+                    elif obstacle:
+                        sonar_label, sonar_color = f"OBSTACLE  L={dist[0]:.0f} R={dist[1]:.0f}cm", (0, 0, 255)
+                    else:
+                        sonar_label, sonar_color = f"SONAR: L={dist[0]:.0f} R={dist[1]:.0f}cm", (0, 255, 0)
+                    cv2.putText(frame, sonar_label, (frame.shape[1] - 330, 40),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, sonar_color, 2, cv2.LINE_AA)
                 cv2.putText(frame, f'Mode: {mode_label}', (20, 40),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, color_mode, 2, cv2.LINE_AA)
                 cv2.putText(frame, f'Direction: {direction}', (20, 75),
@@ -202,6 +227,8 @@ def start_MI_Tracking(config_path):
         print("\n[Main] Stopping system...")
         if gaze is not None:
             gaze.stop()
+        if sonar is not None:
+            sonar.stop()
         if receiver is not None:
             receiver.stop()
             receiver.join()

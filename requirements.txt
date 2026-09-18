@@ -7,6 +7,7 @@ pyserial>=3.5
 PyYAML>=6.0
 matplotlib>=3.7.0
 pygame>=2.6.0
+bleak>=0.21.0
 
 # Cerebruh_Gaze_Tracking dependencies
 opencv-python>=4.5.0
