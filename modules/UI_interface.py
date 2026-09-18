@@ -1,5 +1,7 @@
 import tkinter as tk
-
+from Bluetooth_UltrasonicSensor import ultrasonic_result
+import asyncio
+import threading
 # --- SETTINGS ---
 WINDOW_WIDTH = 600
 WINDOW_HEIGHT = 300
@@ -7,30 +9,9 @@ WINDOW_HEIGHT = 300
 #How to integrate: Must take in an input of distance & the respective sensor direction.
 
 # Simulated distance (replace this with your variable)
-distance = [60,60,60]  #['left','right','back']
+distance = [120]  #['left','right','back'] -> Change to three repeats & values later when you have 3 modules
+#To test variations use 30,70,120.
 repeats = 3;
-# --- COLOR LOGIC ---
-def get_color(distance): #Returns a matrix of colours based on the distances
-    colours = []
-    for lengths in range(repeats):
-        if  distance[lengths]> 100:
-            colours.append("green") 
-        elif distance[lengths] > 50:
-            colours.append("yellow")
-        else:
-            colours.append("red")
-    return colours #(e.g. ["red","red","red"])
-
-def get_wave_number(distance): #Return a matrix of wave number
-    wave_number = []
-    for lengths in range(repeats):
-        if distance[lengths] > 100:
-            wave_number.append(3)
-        elif distance[lengths] > 50:
-            wave_number.append(2)
-        else:
-            wave_number.append(1)
-    return wave_number 
 
 # --- CREATE WINDOW ---
 root = tk.Tk()
@@ -47,6 +28,28 @@ car_y2 = 240
 
 canvas.create_rectangle(car_x1, car_y1, car_x2, car_y2, fill="black")
 
+# --- COLOR LOGIC ---
+def get_color(distance): #Returns a matrix of colours based on the distances
+    colours = []
+    for lengths in range(repeats):
+        if  distance[lengths]> 70:
+            colours.append("green") 
+        elif distance[lengths] > 40:
+            colours.append("yellow")
+        else:
+            colours.append("red")
+    return colours #(e.g. ["red","red","red"])
+
+def get_wave_number(distance): #Return a matrix of wave number
+    wave_number = []
+    for lengths in range(repeats):
+        if distance[lengths] > 70:
+            wave_number.append(3)
+        elif distance[lengths] > 40:
+            wave_number.append(2)
+        else:
+            wave_number.append(1)
+    return wave_number 
 
 # --- DRAW WAVES FUNCTION ---
 def draw_waves(distance):
@@ -79,12 +82,21 @@ def draw_waves(distance):
         )
 
 # --- UPDATE LOOP ---
-def update():
-    global distance
-    # Replace this with real sensor update
-    draw_waves(distance)
-    root.after(200, update)
+#haven't exactly changed this to work for many modules
+def on_ble_update(LHS, RHS):
+    global distance #update distance variable
+    distance = [LHS,0, RHS]
+    root.after(0, draw_waves, distance) #runs draw_waves on main thread
 
-# --- START ---
-update()
+def start_ble_listener():
+    asyncio.run(ultrasonic_result(on_ble_update)) #whenever an update occur, on_ble_update will be run
+
+#By adding a thread, you allow things to occur simultaneously
+#main thread is Tkinter window, ble thread send BLE data
+ble_thread = threading.Thread(target=start_ble_listener, daemon=True)
+ble_thread.start()
+
 root.mainloop()
+#if you want to use this in main.py
+#import UI_interface
+#UI_interface.run_display()
