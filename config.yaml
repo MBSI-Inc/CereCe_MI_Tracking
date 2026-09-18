@@ -14,6 +14,8 @@ exit_on_source_end: false     # true = stop automatically when a replayed CSV ru
 command_keepalive: 0.5        # re-send the current motor command at least this often (s)
 keyboard_override_hold: 0.25  # how long a WASD tap keeps overriding gaze (s)
 start_drive_enabled: auto     # auto | true | false. auto = ON only when eeg_receiver is off
+eeg_warmup_seconds: 5.0       # wait for EEG data before the first health check
+eeg_health_timeout: 5.0       # seconds without EEG data before the MI gate is dropped
 
 # --- Module Enable/Disable ---
 # Set to false to disable problematic modules (e.g., disable 'eeg_receiver' if device has Bluetooth issues)

@@ -28,6 +28,11 @@ class MI_Predictor:
 
         self.model_path = config.get('model_path', 'models/LDA/MItest_24-01-27.sav')
         self.model = self._load_model(self.model_path)
+        if self.model is None:
+            # Say so loudly: without a model every prediction is 'none', which
+            # otherwise looks like "the classifier thinks you are resting".
+            print(f"[MI_Predictor] WARNING: no model loaded from "
+                  f"'{self.model_path}' — every prediction will be 'none'.")
 
     def _load_model(self, model_path):
         try:

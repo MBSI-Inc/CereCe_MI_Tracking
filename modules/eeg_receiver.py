@@ -282,90 +282,50 @@ class EEG_Receiver(Thread):
 
 
 if __name__ == "__main__":
-    # def create_dummy_data(filename):
-    #     n_samples = 70818 
-    #     sampling_rate = 250 # Hz
-    #     timestamps = np.arange(n_samples) / sampling_rate
-        
-    #     n_channels = 4
-    #     data = np.zeros((n_samples, n_channels))
-    #     for i in range(n_samples):
-    #         for ch in range(n_channels):
-    #             data[i, ch] = i + (ch * 1000) 
-        
-    #     df = pd.DataFrame(data, columns=[f'ch{i+1}' for i in range(n_channels)])
-    #     df.insert(0, 'TimeStamp', timestamps)
-    #     df.to_csv(filename, index=False)
-    #     print(f"Created dummy CSV file: {filename} with {n_samples} samples.")
+    import argparse
 
-    # csv_filename = "test_data_temp.csv"
-    # create_dummy_data(csv_filename)
-    # csv_filename = "../data/MItest_24-01-27_ExG.csv"
-    
+    parser = argparse.ArgumentParser(description="EEG_Receiver standalone check.")
+    parser.add_argument('--mode', choices=['device', 'file'], default='device',
+                        help="'file' replays a CSV, 'device' uses ExplorePy")
+    parser.add_argument('--data', default='data/MItest_24-01-27_ExG.csv',
+                        help='CSV/NPY path for --mode file')
+    parser.add_argument('--device', default='Explore_842F',
+                        help='Bluetooth name of the Explore device')
+    parser.add_argument('--buffer-size', type=int, default=1250)
+    parser.add_argument('--seconds', type=float, default=10.0,
+                        help='How long to monitor the buffer')
+    args = parser.parse_args()
 
-    # Use a small buffer size to demonstrate circular buffer behavior
-    # buffer_size = 1250
-    # params = {
-    #     'input_mode': 'file',
-    #     'data_path': csv_filename,
-    #     'buffer_size': buffer_size,
-    #     'silent': False
-    # }
+    params = {'input_mode': args.mode, 'buffer_size': args.buffer_size}
+    if args.mode == 'file':
+        params['data_path'] = args.data
+    else:
+        params['device_name'] = args.device
 
-    
-    buffer_size = 1250
-    params = {
-        'input_mode': 'device',
-        'buffer_size': buffer_size,
-        'silent': False
-    }
-
+    print(f"Initializing EEG_Receiver (mode={args.mode}, "
+          f"buffer_size={args.buffer_size})...")
+    receiver = None
     try:
-        print(f"Initializing EEG_Receiver with buffer_size={buffer_size}...")
         receiver = EEG_Receiver(params)
-        
-        print("Starting EEG Receiver thread...")
         receiver.start()
-        
-        start_monitor_time = time.time()
-        duration = 999.0 
-        
-        print("\n=== Monitoring Buffer State (Circular Queue) ===")
-        
-        last_count = 0
-        while time.time() - start_monitor_time < duration:
-            # time.sleep(0.5)
-            
+        print("Monitoring buffer state (Ctrl+C to stop)...")
+
+        start = time.time()
+        while time.time() - start < args.seconds:
             if not receiver.is_alive():
                 print("Receiver thread finished.")
                 break
-                
-            buffer_data = receiver.get_buffer_data()
-            current_count = len(buffer_data)
-            
-            # print(f"\nTime: {time.time() - start_monitor_time:.1f}s | Buffer Size: {current_count}/{buffer_size}")
-
-            # if current_count > 0:
-                # print(f"  Oldest timestamp: {buffer_data[0][0]:.2f}")
-                # if current_count > 1:
-                #     print(f"  Newest timestamp: {buffer_data[-1][0]:.2f}")
-                # print(f"  Newest Data: {buffer_data[-1][1:]}")
-                
-            last_count = current_count
-        
-        print("\nStop monitoring.")
-        
+            data = receiver.get_buffer_data()
+            print(f"  buffer={len(data):>5}/{args.buffer_size}  "
+                  f"healthy={receiver.is_healthy()}  finished={receiver.finished}")
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        print("\nInterrupted.")
     except Exception as e:
         print(f"An error occurred: {e}")
-        
     finally:
-        if 'receiver' in locals() and receiver.is_alive():
+        if receiver is not None:
             print("Stopping receiver...")
             receiver.stop()
-            receiver.join()
-            
-        if os.path.exists(csv_filename):
-            os.remove(csv_filename)
-            print(f"Removed temp file: {csv_filename}")
-        
-
+            receiver.join(timeout=5.0)
+        print("Done.")
