@@ -8,3 +8,8 @@ __pycache__/
 .venv*/
 .pytest_cache/
 .ruff_cache/
+.uv-cache/
+.uv-python/
+
+# Generated short replay for fast integration runs
+data/*_short.csv
