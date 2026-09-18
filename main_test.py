@@ -26,8 +26,8 @@ def start_MI_Tracking_Test(config_path):
     config['receiver_params']['input_mode'] = 'file'
     # Never touch real motors from a smoke test.
     config['control_params']['debug_mode'] = True
-    # Use the provided CSV file
-    test_file = 'data/MItest_24-01-27_ExG.csv'
+    # Use the provided CSV file (override with MI_TEST_FILE for shorter replays)
+    test_file = os.environ.get('MI_TEST_FILE', 'data/MItest_24-01-27_ExG.csv')
     if os.path.exists(test_file):
         config['receiver_params']['data_path'] = test_file
     else:
@@ -49,6 +49,8 @@ def start_MI_Tracking_Test(config_path):
     # Target control frequency: 20Hz (50ms interval)
     main_loop_interval = config.get('loop_interval', 0.05)
     print("[Main Test] Control loop started.")
+
+    saw_data = False
     
     try:
         while True:
@@ -64,6 +66,7 @@ def start_MI_Tracking_Test(config_path):
             controller_status = "No Action"
 
             if len(data) > 0:
+                saw_data = True
                 # --- Module 2: Predictor Status ---
                 # preprocess and predict MI command
                 raw_prediction = predictor.process_and_predict(data)
@@ -96,9 +99,16 @@ def start_MI_Tracking_Test(config_path):
             if sleep_time > 0:
                 time.sleep(sleep_time)
             
-            # Check if receiver is still running (end of file)
-            if not receiver.running and len(data) == 0:
+            # --- End of stream ---
+            # get_buffer_data() is cumulative (it never pops), so waiting for an
+            # empty buffer would hang forever once the source finishes. The
+            # receiver clears `running` when a file replay reaches EOF.
+            if not receiver.running:
                 print("[Main Test] Input stream ended.")
+                break
+            # Safety net: a source that never produced a sample must not hang.
+            if not saw_data and not receiver.is_alive():
+                print("[Main Test] Input stream ended without producing any data.")
                 break
 
     except KeyboardInterrupt:

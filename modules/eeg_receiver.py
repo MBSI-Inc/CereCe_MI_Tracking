@@ -271,6 +271,10 @@ class EEG_Receiver(Thread):
                 
                 print("[MockExplore] End of file reached or stopped.")
                 self.running = False
+                # The outer receiver thread exits as soon as acquire() returns,
+                # so running must be cleared here too: consumers poll it to tell
+                # "stream finished" apart from "thread still streaming".
+                self.receiver.running = False
 
             def stop_acquisition(self):
                 self.running = False
