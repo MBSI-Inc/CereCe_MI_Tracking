@@ -6,8 +6,11 @@ import time
 import os
 import sys
 import logging
-from explorepy import Explore
-from explorepy.stream_processor import TOPICS
+
+# explorepy is imported lazily in device mode: importing it at module level
+# pulls in its dashboard/sentry side-effects (notably on Windows) and breaks
+# file-mode replay on machines without the SDK installed.
+TOPICS = None
 
 _log = logging.getLogger(__name__)
 
@@ -47,6 +50,24 @@ class EEG_Receiver(Thread):
         elif self.mode == 'device':
             print(f"[Receiver] Input Mode: Device")
             self.device_name = params.get('device_name', 'Explore_842F')
+
+            try:
+                global TOPICS
+                from explorepy import Explore
+                from explorepy.stream_processor import TOPICS
+            except Exception as e:
+                # No SDK on this machine: replay from CSV if one is configured.
+                self.data_path = params.get('data_path', None)
+                if self.data_path:
+                    print(f"[Receiver] Warning: explorepy import failed ({e}); "
+                          "switching to file mode using data_path.")
+                    self.mode = 'file'
+                    self.explorer = self.simulate_device()
+                    return
+                raise ImportError(
+                    f"Could not import explorepy: {e}. Install explorepy or set "
+                    "'input_mode' to 'file' with a 'data_path'."
+                )
 
             if sys.platform.startswith('linux'):
                 # The Mentalab C++ SDK drops the RFCOMM connection ~45ms after
