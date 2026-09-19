@@ -4,7 +4,7 @@ import asyncio
 import threading
 # --- SETTINGS ---
 WINDOW_WIDTH = 600
-WINDOW_HEIGHT = 300
+WINDOW_HEIGHT = 600
 
 #How to integrate: Must take in an input of distance & the respective sensor direction.
 
@@ -21,10 +21,12 @@ canvas = tk.Canvas(root, width=WINDOW_WIDTH, height=WINDOW_HEIGHT, bg="white")
 canvas.pack()
 
 # --- DRAW CAR --- #To replace with an image of a wheelchair 
-car_x1 = 50
-car_x2 = 110
-car_y1 = 120
-car_y2 = 240
+car_width = 60
+car_length = 120
+car_x1 = WINDOW_WIDTH/2 - car_width/2
+car_y1 = WINDOW_HEIGHT/2 - car_length/2
+car_x2 = car_x1 + car_width
+car_y2 = car_y1 + car_length
 
 canvas.create_rectangle(car_x1, car_y1, car_x2, car_y2, fill="black")
 
@@ -32,7 +34,7 @@ canvas.create_rectangle(car_x1, car_y1, car_x2, car_y2, fill="black")
 def get_color(distance): #Returns a matrix of colours based on the distances
     colours = []
     for lengths in range(repeats):
-        if  distance[lengths]> 70:
+        if  distance[lengths] >= 70:
             colours.append("green") 
         elif distance[lengths] > 40:
             colours.append("yellow")
@@ -43,7 +45,7 @@ def get_color(distance): #Returns a matrix of colours based on the distances
 def get_wave_number(distance): #Return a matrix of wave number
     wave_number = []
     for lengths in range(repeats):
-        if distance[lengths] > 70:
+        if distance[lengths] >= 70:
             wave_number.append(3)
         elif distance[lengths] > 40:
             wave_number.append(2)
@@ -85,7 +87,7 @@ def draw_waves(distance):
 #haven't exactly changed this to work for many modules
 def on_ble_update(LHS, RHS):
     global distance #update distance variable
-    distance = [LHS,0, RHS]
+    distance = [LHS, RHS, 0]
     root.after(0, draw_waves, distance) #runs draw_waves on main thread
 
 def start_ble_listener():
